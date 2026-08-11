@@ -1,0 +1,1929 @@
+:root {
+  --bg: #0b0c10;
+  --bg-2: #12141a;
+  --bg-3: #191c24;
+  --line: #262a34;
+  --fg: #e9eaf0;
+  --muted: #8a90a2;
+  --accent: #00e5ff;
+  --accent-2: #ff2d95;
+  --major: #5aa9ff; /* 大調 */
+  --minor: #ff5d6c; /* 小調 */
+  --ok: #2ee88f;
+  --warn: #ffb02e;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* 有些元素下面用了 display:grid/flex，會蓋掉 hidden 屬性的預設值 */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    14px/1.5 -apple-system,
+    "PingFang TC",
+    "Noto Sans TC",
+    system-ui,
+    sans-serif;
+  overflow: hidden;
+}
+
+#app {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100%;
+}
+
+/* ---------- 上方列 ---------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, #14161d, #0f1116);
+  border-bottom: 1px solid var(--line);
+  z-index: 5;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.brand b {
+  font-weight: 700;
+}
+
+.brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 12px var(--accent);
+}
+
+.song {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+  max-width: 34vw;
+}
+
+.song span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 12px;
+}
+
+/* ---------- 按鈕 ---------- */
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+  color: var(--fg);
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  white-space: nowrap;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    transform 0.06s;
+}
+
+.btn:hover {
+  background: #212533;
+  border-color: #333a49;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #00c8e0, #0097b8);
+  border-color: #00b3cc;
+  color: #041014;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(180deg, #16d8ee, #00a5c6);
+}
+
+.btn-ghost {
+  background: transparent;
+}
+
+.btn-sm {
+  padding: 5px 9px;
+  font-size: 12px;
+}
+
+.btn-icon {
+  width: 40px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.btn.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.25);
+}
+
+/* ---------- 藍牙狀態 ---------- */
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--bg-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4a5060;
+}
+
+.chip[data-status="connecting"] .chip-dot {
+  background: var(--warn);
+  animation: blink 0.8s infinite;
+}
+
+.chip[data-status="connected"] .chip-dot {
+  background: var(--ok);
+  box-shadow: 0 0 10px var(--ok);
+}
+
+.chip-batt {
+  color: var(--muted);
+  border-left: 1px solid var(--line);
+  padding-left: 7px;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ---------- 主體 ---------- */
+
+.main {
+  position: relative; /* 窄畫面時側邊面板要相對這裡絕對定位 */
+  display: grid;
+  grid-template-columns: 264px 1fr;
+  min-height: 0;
+}
+
+/* 面板收起時整欄拿掉；如果只設 0px，被隱藏的 aside 會離開格線流，
+   讓 .stage 掉到第一欄（寬度 0）而整個消失。 */
+body.no-panel .main {
+  grid-template-columns: 1fr;
+}
+
+body.no-panel .side {
+  display: none;
+}
+
+.side {
+  border-right: 1px solid var(--line);
+  background: var(--bg-2);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-3);
+  padding: 11px;
+}
+
+.panel h3 {
+  margin: 0 0 9px;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.panel-sep {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 12px 0 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 7px 0;
+  font-size: 13px;
+}
+
+.row > span:first-child {
+  min-width: 74px;
+  color: var(--muted);
+}
+
+.row.gap {
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.row input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.row output {
+  min-width: 40px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.row input[type="color"] {
+  width: 42px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+select {
+  flex: 1;
+  background: var(--bg-2);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 7px;
+  font-size: 12px;
+}
+
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--accent);
+  width: 15px;
+  height: 15px;
+}
+
+.tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.track:hover {
+  background: #1f2431;
+}
+
+.track.active {
+  border-color: var(--accent);
+  background: rgba(0, 229, 255, 0.08);
+}
+
+.track-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.track-badge {
+  font-size: 10px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+/* ---------- 樂譜區 ---------- */
+
+.stage {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  min-height: 0;
+  min-width: 0;
+  position: relative;
+}
+
+.viewport {
+  position: relative;
+  overflow: auto;
+  background: #f7f7f9;
+}
+
+#alphatab {
+  min-height: 100%;
+}
+
+.at-cursor-bar {
+  background: rgba(0, 229, 255, 0.16);
+}
+
+.at-selection div {
+  background: rgba(255, 45, 149, 0.14);
+}
+
+.at-cursor-beat {
+  background: #ff2d95;
+  width: 3px;
+}
+
+.at-highlight * {
+  fill: #0097b8;
+  stroke: #0097b8;
+}
+
+.drop-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #0e1015;
+  color: var(--fg);
+  text-align: center;
+  pointer-events: none;
+  /* alphaTab 會在 #alphatab 裡自己插入容器 div，沒有 z-index 的話
+     那些 div 會蓋在提示層上面，「載入範例譜」就按不到 */
+  z-index: 4;
+}
+
+.drop-hint.hide {
+  display: none;
+}
+
+.drop-hint .btn {
+  pointer-events: auto;
+  margin-top: 6px;
+}
+
+.viewport.dragover .drop-hint {
+  background: #131826;
+  outline: 2px dashed var(--accent);
+  outline-offset: -14px;
+}
+
+.drop-icon {
+  font-size: 46px;
+  color: var(--accent);
+  text-shadow: 0 0 22px var(--accent);
+  margin-bottom: 4px;
+}
+
+/* ---------- 指板 ---------- */
+
+.fretboard-wrap {
+  position: relative;
+  border-top: 1px solid var(--line);
+  background: #0d0f14;
+  padding: 8px 12px 6px;
+}
+
+.fretboard-wrap.hidden {
+  display: none;
+}
+
+#fretboard {
+  display: block;
+  width: 100%;
+  height: 132px;
+  border-radius: 8px;
+}
+
+.fretboard-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #5c6274;
+  padding: 3px 2px 0;
+}
+
+/* ---------- 播放列 ---------- */
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  background: linear-gradient(180deg, #12141b, #0d0f14);
+  border-top: 1px solid var(--line);
+}
+
+.time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.seek-wrap {
+  flex: 1;
+  min-width: 90px;
+  display: flex;
+}
+
+#seek {
+  width: 100%;
+}
+
+.ctl {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.ctl input[type="range"] {
+  width: 96px;
+}
+
+.ctl output {
+  min-width: 38px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- IG 直式 9:16 ---------- */
+
+body.ig .main {
+  grid-template-columns: 1fr;
+  background: #05060a;
+}
+
+body.ig .side {
+  display: none;
+}
+
+body.ig .stage {
+  width: min(calc((100vh - 130px) * 9 / 16), 100%);
+  margin: 0 auto;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  grid-template-rows: 44% 56%;
+  box-shadow: 0 0 60px rgba(0, 229, 255, 0.07);
+}
+
+/* 直式時指板改成填滿下半部，不用固定高度，才不會被切掉 */
+body.ig .fretboard-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.ig #fretboard {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+body.ig .viewport {
+  background: #fff;
+}
+
+body.ig .fretboard-wrap {
+  padding: 10px;
+}
+
+/* ---------- 乾淨畫面（錄影用） ---------- */
+
+body.clean .topbar,
+body.clean .transport,
+body.clean .side,
+body.clean .fretboard-legend {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+body.clean .topbar:hover,
+body.clean .transport:hover {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+body.clean .main {
+  grid-template-columns: 1fr;
+}
+
+/* ---------- 和弦譜 ---------- */
+
+.cc-viewport {
+  background: #0d0f14;
+  padding: 0;
+}
+
+.chordchart {
+  padding: 18px 20px 26px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.cc-head {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.cc-title {
+  font-size: 19px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+
+.cc-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cc-diagrams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.cc-dia {
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px 1px 1px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.cc-dia:hover {
+  border-color: var(--accent);
+  background: rgba(0, 229, 255, 0.07);
+}
+
+.chord-dia {
+  display: block;
+  width: 74px;
+  height: auto;
+}
+
+.dia-name {
+  fill: var(--fg);
+  font-size: 10px;
+  font-weight: 600;
+  font-family: -apple-system, system-ui, sans-serif;
+}
+
+.dia-string,
+.dia-fret {
+  stroke: #4d5466;
+  stroke-width: 0.8;
+}
+
+.dia-nut {
+  stroke: #b9bfcc;
+  stroke-width: 2.4;
+}
+
+.dia-dot {
+  fill: var(--accent);
+}
+
+.dia-open {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+
+.dia-x {
+  fill: #6b7285;
+  font-size: 8px;
+  font-family: -apple-system, system-ui, sans-serif;
+}
+
+.dia-pos {
+  fill: var(--muted);
+  font-size: 8px;
+  font-family: -apple-system, system-ui, sans-serif;
+}
+
+/* 段落快速跳 */
+.cc-sections {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.cc-sec-label {
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 2px;
+}
+
+.cc-sec {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg-3);
+  color: var(--fg);
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.cc-sec:hover {
+  border-color: var(--accent);
+  background: rgba(0, 229, 255, 0.07);
+}
+
+.cc-sec b {
+  font-size: 13px;
+}
+
+.cc-sec small {
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.cc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.cc-sechead {
+  grid-column: 1 / -1;
+  margin: 8px 0 -2px;
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.75;
+  border-bottom: 1px solid rgba(0, 229, 255, 0.18);
+  padding-bottom: 3px;
+}
+
+.cc-sechead:first-child {
+  margin-top: 0;
+}
+
+.cc-bar {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--bg-2);
+  padding: 16px 8px 10px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.cc-bar:hover {
+  border-color: #3d4557;
+  background: #191d27;
+}
+
+.cc-bar.is-now {
+  border-color: var(--accent);
+  background: rgba(0, 229, 255, 0.07);
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.12);
+}
+
+/* 選段循環的範圍 */
+.cc-bar.in-loop {
+  background: rgba(255, 45, 149, 0.08);
+  border-color: rgba(255, 45, 149, 0.4);
+}
+
+.cc-bar.in-loop.is-now {
+  background: rgba(0, 229, 255, 0.1);
+  border-color: var(--accent);
+}
+
+.cc-bar.loop-start::before,
+.cc-bar.loop-end::after {
+  position: absolute;
+  top: 2px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--accent-2);
+  letter-spacing: 0.5px;
+}
+
+.cc-bar.loop-start::before {
+  content: "A";
+  right: 7px;
+}
+
+.cc-bar.loop-end::after {
+  content: "B";
+  right: 7px;
+}
+
+.cc-bar.loop-start.loop-end::after {
+  content: "";
+}
+
+.cc-barnum {
+  position: absolute;
+  top: 3px;
+  left: 7px;
+  font-size: 10px;
+  color: #565d70;
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-slots {
+  display: grid;
+  align-items: center;
+  gap: 2px;
+  min-height: 30px;
+}
+
+.cc-slot {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--fg);
+  border-radius: 5px;
+  padding: 2px 0;
+}
+
+.cc-slot.is-hold {
+  color: #4b5265;
+  font-weight: 400;
+}
+
+/* 大調藍、小調紅 */
+.cc-slot.q-major {
+  color: var(--major);
+}
+
+.cc-slot.q-minor {
+  color: var(--minor);
+}
+
+.cc-slot.is-hold {
+  color: #4b5265;
+}
+
+.cc-slot.is-now.q-major {
+  color: #06131f;
+  background: var(--major);
+}
+
+.cc-slot.is-now.q-minor {
+  color: #1f0609;
+  background: var(--minor);
+}
+
+.cc-slot.is-hold.is-now.q-major {
+  color: var(--major);
+  background: rgba(90, 169, 255, 0.16);
+}
+
+.cc-slot.is-hold.is-now.q-minor {
+  color: var(--minor);
+  background: rgba(255, 93, 108, 0.16);
+}
+
+/* 和弦圖的名稱也跟著上色 */
+.cc-dia.q-major .dia-name,
+.pk-name.q-major {
+  fill: var(--major);
+  color: var(--major);
+}
+
+.cc-dia.q-minor .dia-name,
+.pk-name.q-minor {
+  fill: var(--minor);
+  color: var(--minor);
+}
+
+.cc-dia.q-major .dia-dot,
+.cc-dia.q-major .dia-open {
+  fill: var(--major);
+  stroke: var(--major);
+}
+
+.cc-dia.q-major .dia-open {
+  fill: none;
+}
+
+.cc-dia.q-minor .dia-dot,
+.cc-dia.q-minor .dia-open {
+  fill: var(--minor);
+  stroke: var(--minor);
+}
+
+.cc-dia.q-minor .dia-open {
+  fill: none;
+}
+
+.cc-note {
+  margin: 18px 0 0;
+  font-size: 11px;
+  color: #5c6274;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .cc-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+body.ig .cc-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+body.ig .chordchart {
+  padding: 12px;
+}
+
+body.ig .cc-diagrams {
+  display: none;
+}
+
+/* ---------- 數字簡譜 ---------- */
+
+.jianpu-wrap {
+  border-top: 1px solid var(--line);
+  background: #0d0f14;
+  padding: 8px 14px 12px;
+  max-height: 34vh;
+  overflow-y: auto;
+}
+
+.jianpu-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.jianpu {
+  font-size: 17px;
+  line-height: 2.1;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.jp-row {
+  white-space: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.jp-bar {
+  margin-right: 6px;
+}
+
+.jp-line {
+  color: #4d5466;
+  margin-right: 10px;
+}
+
+/* 數字 + 八度點，點要疊在數字上下，所以用相對定位。
+   每格給一致的最小寬度（≈ 一拍），長音的延長線也一樣寬，排起來才工整。 */
+.jp-cell {
+  position: relative;
+  display: inline-block;
+  min-width: 1.35em;
+  text-align: center;
+}
+
+/* 八分／十六分是半拍以下，給窄一點，密集的地方才不會撐太寬 */
+.jp-cell.jp-u1 {
+  min-width: 1em;
+}
+.jp-cell.jp-u2,
+.jp-cell.jp-u3 {
+  min-width: 0.85em;
+}
+
+/* 長音延長線：和音符一樣寬、置中，全音符 = 「1 - - -」剛好四拍寬 */
+.jp-dash {
+  display: inline-block;
+  min-width: 1.35em;
+  text-align: center;
+}
+
+.jp-num {
+  position: relative;
+}
+
+.jp-dot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+
+.jp-up {
+  top: -7px;
+}
+
+.jp-down {
+  bottom: -7px;
+}
+
+.jp-rest {
+  color: #5c6274;
+}
+
+/* 八分／十六分的底線 */
+.jp-u1 .jp-num {
+  border-bottom: 1px solid var(--muted);
+}
+
+.jp-u2 .jp-num {
+  border-bottom: 3px double var(--muted);
+}
+
+.jp-u3 .jp-num {
+  border-bottom: 3px double var(--muted);
+  box-shadow: 0 4px 0 -3px var(--muted);
+}
+
+/* ---------- 分軌混音 ---------- */
+
+.mixer {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.mx-track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mx-name {
+  flex: 0 0 62px;
+  font-size: 12px;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mx-vol {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.mx-btn {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+  color: var(--muted);
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mx-btn:hover {
+  color: var(--fg);
+  border-color: #3d4557;
+}
+
+.mx-mute.on {
+  background: var(--minor);
+  border-color: var(--minor);
+  color: #1f0609;
+}
+
+.mx-solo.on {
+  background: var(--warn);
+  border-color: var(--warn);
+  color: #1f1405;
+}
+
+/* ---------- YouTube 影片（可拖動、可縮放的浮動視窗） ---------- */
+
+.video-wrap {
+  position: fixed;
+  z-index: 60;
+  top: 84px;
+  right: 20px;
+  width: 360px;
+  background: #05060a;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 200px;
+  max-width: 96vw;
+}
+
+/* 拖曳時暫時關掉 iframe 的滑鼠事件，不然指標一進到影片就抓不到 mousemove */
+.video-wrap.dragging #video-host {
+  pointer-events: none;
+}
+
+.video-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 5px 10px;
+  cursor: move;
+  user-select: none;
+  background: #0c0e15;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+
+.video-head-title {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.video-head-hint {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+#video-host,
+#video-host iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: 0;
+  display: block;
+}
+
+/* 右下角縮放把手 */
+.video-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 18px;
+  height: 18px;
+  cursor: nwse-resize;
+  z-index: 2;
+  background:
+    linear-gradient(135deg, transparent 50%, var(--muted) 50%, var(--muted) 62%, transparent 62%, transparent 74%, var(--muted) 74%, var(--muted) 86%, transparent 86%);
+  opacity: 0.7;
+}
+.video-resize:hover {
+  opacity: 1;
+}
+
+/* 直式模式下不要蓋到譜，預設縮小一點 */
+body.ig .video-wrap {
+  width: 240px;
+}
+
+/* ---------- 歌詞 ---------- */
+
+.cc-lyric {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: center;
+  min-height: 1px;
+}
+
+.cc-lyric-zh {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #d6d9e2;
+  word-break: break-all;
+}
+
+.cc-lyric-py {
+  font-size: 10px;
+  line-height: 1.3;
+  color: #6f7688;
+  word-break: break-all;
+}
+
+#lyrics-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 7px 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  font-family: inherit;
+  margin-bottom: 4px;
+}
+
+#lyrics-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+#lyrics-offset {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  border-radius: 7px;
+  padding: 4px 7px;
+  font-size: 12px;
+}
+
+/* ---------- 手動修和弦 ---------- */
+
+.chordchart {
+  position: relative; /* 編輯小面板要相對這裡定位 */
+}
+
+.chordchart.editing .cc-bar {
+  cursor: default;
+}
+
+.chordchart.editing .cc-slot.is-new {
+  cursor: pointer;
+  outline: 1px dashed rgba(255, 255, 255, 0.14);
+  outline-offset: 1px;
+  border-radius: 5px;
+}
+
+.chordchart.editing .cc-slot.is-new:hover {
+  outline-color: var(--accent);
+  background: rgba(0, 229, 255, 0.1);
+}
+
+/* 改過的和弦下面點一個記號 */
+.cc-slot.is-edited {
+  position: relative;
+}
+
+.cc-slot.is-edited::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+
+.cc-edit {
+  position: absolute;
+  z-index: 20;
+  width: 268px;
+  padding: 10px;
+  background: var(--bg-2);
+  border: 1px solid var(--accent);
+  border-radius: 11px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cc-edit-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cc-edit-head b {
+  font-size: 17px;
+  color: var(--accent);
+}
+
+.cc-edit-roots,
+.cc-edit-quals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.cc-chip {
+  min-width: 30px;
+  padding: 4px 5px;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+  color: var(--fg);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cc-chip-wide {
+  min-width: 44px;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.cc-chip:hover {
+  background: #212533;
+  border-color: #3d4557;
+}
+
+.cc-chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #04141a;
+}
+
+.cc-edit-scope {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.cc-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ---------- 和弦盤 ---------- */
+
+.pk-viewport {
+  background: #0d0f14;
+  padding: 0;
+}
+
+.stems-view {
+  background: #0d0f14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.stems-inner {
+  text-align: center;
+  color: var(--text);
+  padding: 24px;
+  max-width: 420px;
+}
+
+.stems-inner .stems-icon {
+  font-size: 46px;
+  margin-bottom: 6px;
+}
+
+.stems-inner p {
+  margin: 6px 0;
+  line-height: 1.6;
+}
+
+.chordpicker {
+  padding: 16px 20px 24px;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.pk-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pk-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.pk-label {
+  flex: 0 0 34px;
+  font-size: 12px;
+  color: var(--muted);
+  padding-top: 7px;
+}
+
+.pk-roots,
+.pk-quals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pk-chip {
+  min-width: 40px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-3);
+  color: var(--fg);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.15;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.pk-chip small {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.pk-chip-wide {
+  min-width: 56px;
+  font-size: 13px;
+}
+
+.pk-chip:hover {
+  background: #212533;
+  border-color: #3d4557;
+}
+
+.pk-chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #04141a;
+}
+
+.pk-chip.on small {
+  color: rgba(4, 20, 26, 0.65);
+}
+
+.pk-current {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 16px 0 10px;
+}
+
+.pk-name {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  text-shadow: 0 0 22px rgba(0, 229, 255, 0.28);
+}
+
+.pk-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.pk-positions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pk-pos {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 6px 7px;
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--fg);
+  transition: border-color 0.12s, background 0.12s, transform 0.08s;
+}
+
+.pk-pos:hover {
+  border-color: #3d4557;
+  background: #1c2130;
+}
+
+.pk-pos.on {
+  border-color: var(--accent);
+  background: rgba(0, 229, 255, 0.08);
+  box-shadow: 0 0 16px rgba(0, 229, 255, 0.14);
+}
+
+.pk-pos-label {
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pk-pos-meta {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.pk-prog {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.pk-prog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.pk-prog-head h3 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.pk-prog-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.pk-prog-item {
+  position: relative;
+}
+
+.pk-prog-pick {
+  display: block;
+  padding: 4px 5px 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.pk-prog-pick:hover {
+  border-color: var(--accent);
+}
+
+.pk-prog-del {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: #232837;
+  color: var(--muted);
+  font-size: 10px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.pk-prog-item:hover .pk-prog-del {
+  opacity: 1;
+}
+
+.pk-prog-del:hover {
+  color: #ff8095;
+  border-color: #ff5c7a;
+}
+
+.pk-prog-num {
+  position: absolute;
+  bottom: -3px;
+  left: 4px;
+  font-size: 9px;
+  color: #4d5466;
+  font-variant-numeric: tabular-nums;
+}
+
+body.ig .chordpicker {
+  padding: 12px;
+}
+
+/* ---------- 抓和弦對話框 ---------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 5, 8, 0.72);
+  display: grid;
+  place-items: center;
+  z-index: 70;
+  padding: 20px;
+}
+
+.modal-card {
+  width: min(480px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.modal-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 7px 12px;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  font-size: 13px;
+  margin-bottom: -1px;
+}
+
+.modal-tab:hover {
+  color: var(--fg);
+}
+
+.modal-tab.on {
+  color: var(--accent);
+  border-color: var(--line);
+  border-bottom: 1px solid var(--bg-2);
+  background: var(--bg-2);
+}
+
+.modal-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.field > label {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.field input[type="url"] {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.field input[type="url"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.field p {
+  margin: 6px 0 0;
+}
+
+.field p.warn {
+  color: var(--warn);
+}
+
+.opts {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+/* 搜尋結果清單 */
+.field input[type="search"] {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  appearance: none;
+}
+
+.field input[type="search"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.results {
+  margin-top: 9px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 246px;
+  overflow-y: auto;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: var(--bg-3);
+  color: var(--fg);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.result:hover {
+  border-color: var(--accent);
+  background: rgba(0, 229, 255, 0.07);
+}
+
+.result-thumb {
+  flex: 0 0 62px;
+  width: 62px;
+  height: 35px;
+  border-radius: 5px;
+  object-fit: cover;
+  background: #1c2130;
+}
+
+.result-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.result-title {
+  font-size: 12.5px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.result-meta {
+  font-size: 10.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-go {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.result:hover .result-go {
+  opacity: 1;
+}
+
+.or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #4d5466;
+  font-size: 11px;
+}
+
+.or::before,
+.or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.job {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(0, 229, 255, 0.04);
+}
+
+/* 工作進行中只留進度，來源分頁與選項先收起來 */
+.modal-card.running .modal-tabs,
+.modal-card.running .modal-body {
+  display: none;
+}
+
+.job-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--bg-3);
+  overflow: hidden;
+}
+
+.job-fill {
+  height: 100%;
+  width: 2%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.25s;
+}
+
+.job p {
+  margin: 7px 0 0;
+}
+
+/* 和弦模式下不能用的按鈕 */
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ---------- 提示 ---------- */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  background: #1c2130;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  padding: 9px 15px;
+  border-radius: 999px;
+  font-size: 13px;
+  z-index: 50;
+  max-width: 78vw;
+  text-align: center;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.5);
+}
+
+.toast.err {
+  border-color: #ff5c7a;
+  color: #ffd6de;
+}
+
+.loading {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  background: rgba(6, 7, 11, 0.72);
+  z-index: 60;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.spin {
+  width: 26px;
+  height: 26px;
+  border: 2px solid #2a3040;
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 900px) {
+  /* 窄畫面時側邊面板改成覆蓋在樂譜上，不擠壓譜面寬度 */
+  .main {
+    grid-template-columns: 1fr;
+  }
+
+  .side {
+    position: absolute;
+    z-index: 8;
+    height: 100%;
+    width: 264px;
+    box-shadow: 12px 0 30px rgba(0, 0, 0, 0.5);
+  }
+
+  .song {
+    display: none;
+  }
+}
