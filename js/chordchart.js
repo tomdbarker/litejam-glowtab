@@ -11,8 +11,8 @@ import {
 
 const EDIT_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const EDIT_QUALITIES = [
-  ['', '大三'],
-  ['m', '小三'],
+  ['', 'Major'],
+  ['m', 'Minor'],
   ['7', '7'],
   ['m7', 'm7'],
   ['maj7', 'maj7'],
@@ -20,7 +20,7 @@ const EDIT_QUALITIES = [
   ['sus2', 'sus2'],
   ['dim', 'dim'],
   ['aug', 'aug'],
-  ['5', '強力'],
+  ['5', 'Power'],
 ];
 
 export class ChordChart {
@@ -175,17 +175,17 @@ export class ChordChart {
     pop.innerHTML = `
       <div class="cc-edit-head">
         <b></b>
-        <span class="muted small">第 ${Math.floor((beatIndex - this.data.downbeat) / this.data.beatsPerBar) + 1} 小節</span>
+        <span class="muted small">Bar ${Math.floor((beatIndex - this.data.downbeat) / this.data.beatsPerBar) + 1}</span>
       </div>
       <div class="cc-edit-roots"></div>
       <div class="cc-edit-quals"></div>
       <label class="cc-edit-scope">
         <input type="checkbox" checked />
-        <span>整段相同的和弦一起改</span>
+        <span>Edit all consecutive matching chords</span>
       </label>
       <div class="cc-edit-actions">
-        <button class="btn btn-sm cc-edit-nc">改成沒有和弦</button>
-        <button class="btn btn-sm cc-edit-cancel">取消</button>
+        <button class="btn btn-sm cc-edit-nc">Set to no chord</button>
+        <button class="btn btn-sm cc-edit-cancel">Cancel</button>
       </div>`;
 
     pop.querySelector('.cc-edit-head b').textContent = current;
@@ -425,7 +425,7 @@ export class ChordChart {
     const head = document.createElement('div');
     head.className = 'cc-head';
     const keyLabel = this.transpose
-      ? `${d.key}（移調 ${this.transpose > 0 ? '+' : ''}${this.transpose}）`
+      ? `${d.key} (transpose ${this.transpose > 0 ? '+' : ''}${this.transpose})`
       : d.key;
     head.innerHTML = `
       <div class="cc-title"></div>
@@ -433,10 +433,10 @@ export class ChordChart {
         <span>${Math.round(d.bpm)} BPM</span>
         <span>${escapeHtml(keyLabel)}</span>
         <span>${bpb}/4</span>
-        <span>${d.bars.length} 小節</span>
-        ${this.capo ? `<span class="cc-capo">移調夾 ${this.capo} 格（下面寫的是你按的指型）</span>` : ''}
+        <span>${d.bars.length} bars</span>
+        ${this.capo ? `<span class="cc-capo">Capo ${this.capo} (showing the chord shapes you play)</span>` : ''}
       </div>`;
-    head.querySelector('.cc-title').textContent = d.title || '和弦譜';
+    head.querySelector('.cc-title').textContent = d.title || 'Chord Chart';
     this.el.appendChild(head);
 
     // ---- 用到的和弦圖
@@ -458,8 +458,8 @@ export class ChordChart {
         card.className = `cc-dia q-${chordColorClass(n)}`;
         card.title =
           this.displayMode === 'degree'
-            ? `${n} = ${degreeName(n, (this.keyRoot + this.transpose + 120) % 12)}，點看其他把位`
-            : `看 ${n} 的其他把位指型`;
+            ? `${n} = ${degreeName(n, (this.keyRoot + this.transpose + 120) % 12)}. Click to view other positions.`
+            : `View other positions for ${n}`;
         card.innerHTML = diagramSvg(n);
         card.addEventListener('click', () => this.onChordClick?.(n));
         strip.appendChild(card);
@@ -472,14 +472,14 @@ export class ChordChart {
     if (sections.length > 1) {
       const nav = document.createElement('div');
       nav.className = 'cc-sections';
-      nav.innerHTML = '<span class="cc-sec-label">段落</span>';
+      nav.innerHTML = '<span class="cc-sec-label">Sections</span>';
       for (const s of sections) {
         const bar = d.bars[s.startBar];
         if (!bar) continue;
         const b = document.createElement('button');
         b.className = 'cc-sec';
-        b.innerHTML = `<b>${escapeHtml(s.label)}</b><small>第 ${s.startBar + 1} 小節</small>`;
-        b.title = `${s.bars} 小節`;
+        b.innerHTML = `<b>${escapeHtml(s.label)}</b><small>Bar ${s.startBar + 1}</small>`;
+        b.title = `${s.bars} bars`;
         b.addEventListener('click', () => this.onSeek?.(bar.start));
         nav.appendChild(b);
       }
@@ -498,7 +498,7 @@ export class ChordChart {
         if (bar.section) {
           const head = document.createElement('div');
           head.className = 'cc-sechead';
-          head.textContent = `段落 ${bar.section}`;
+          head.textContent = `Section ${bar.section}`;
           grid.appendChild(head);
         }
       }
@@ -528,7 +528,7 @@ export class ChordChart {
           `cc-slot ${isNew ? 'is-new' : 'is-hold'} q-${chordColorClass(raw)}` +
           (this.edited.has(beatIndex) ? ' is-edited' : '');
         slot.textContent = isNew ? this.label(raw) : '·';
-        if (this.edited.has(beatIndex)) slot.title = '手動改過';
+        if (this.edited.has(beatIndex)) slot.title = 'Manually edited';
         slot.addEventListener('click', (e) => {
           if (!this.editMode) return; // 沒進編輯模式就交給小節的點擊（跳播放位置）
           e.stopPropagation();
@@ -591,10 +591,10 @@ export class ChordChart {
     const note = document.createElement('p');
     note.className = 'cc-note';
     note.innerHTML = this.editMode
-      ? '<b>編輯和弦中</b>：點任何一個和弦就能改。預設會把「連續相同的整段」一起改掉。'
-      : '和弦是自動聽出來的，會有錯。<b>點小節</b>跳到那裡；' +
-        '<b>⌥ 或 ⌘ 點</b>設循環起點、<b>⇧ 點</b>設終點，再按下面的「循環」就會只練那一段。' +
-        '要修和弦就打開左邊的「編輯和弦」。';
+      ? '<b>Chord editing is on.</b> Click any chord to edit it. Consecutive matching chords are edited together by default.'
+      : 'Automatically detected chords may be inaccurate. <b>Click a bar</b> to seek; ' +
+        '<b>Alt or ⌘-click</b> to set the loop start, then <b>Shift-click</b> to set the end. Press <b>Loop</b> below to practice that section. ' +
+        'To correct a chord, select <b>Edit Chords</b> on the left.';
     this.el.appendChild(note);
   }
 
@@ -643,9 +643,9 @@ export class ChordChart {
     const d = this.data;
     if (!d) return '';
     const lines = [];
-    lines.push(d.title || '和弦譜');
-    const modeLabel = this.displayMode === 'degree' ? '級數譜' : '和弦譜';
-    lines.push(`${Math.round(d.bpm)} BPM ・ ${d.key}${this.transpose ? `（移調 ${this.transpose > 0 ? '+' : ''}${this.transpose}）` : ''} ・ ${d.beatsPerBar}/4 ・ ${modeLabel}`);
+    lines.push(d.title || 'Chord Chart');
+    const modeLabel = this.displayMode === 'degree' ? 'Scale Degrees' : 'Chord Names';
+    lines.push(`${Math.round(d.bpm)} BPM · ${d.key}${this.transpose ? ` (transpose ${this.transpose > 0 ? '+' : ''}${this.transpose})` : ''} · ${d.beatsPerBar}/4 · ${modeLabel}`);
     lines.push('');
 
     // 有歌詞的話欄位要加寬，中文才塞得進去
@@ -678,7 +678,7 @@ export class ChordChart {
       }
     }
     lines.push('');
-    lines.push('（由 LiteJam 燈譜自動分析，僅供參考）');
+    lines.push('(Automatically analyzed by LiteJam GlowTab; for reference only.)');
     return lines.join('\n');
   }
 }

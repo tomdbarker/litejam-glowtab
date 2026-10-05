@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-Hant">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>LiteJam 燈譜</title>
+    <title>LiteJam GlowTab</title>
     <link rel="stylesheet" href="css/style.css" />
     <script src="vendor/alphatab/alphaTab.min.js"></script>
   </head>
@@ -12,17 +12,17 @@
       <header class="topbar">
         <div class="brand">
           <span class="brand-dot"></span>
-          <span class="brand-name">LiteJam <b>燈譜</b></span>
+          <span class="brand-name">LiteJam <b>GlowTab</b></span>
         </div>
 
-        <button id="btn-open" class="btn btn-primary">開啟譜</button>
+        <button id="btn-open" class="btn btn-primary">Open Score</button>
         <input id="file-input" type="file" accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.gp8,.musicxml,.xml,.mxl,.cap,.capx,.mid,.midi" hidden />
 
-        <button id="btn-chord" class="btn">🎵 抓和弦</button>
-        <button id="btn-picker" class="btn">🎸 和弦盤</button>
+        <button id="btn-chord" class="btn">🎵 Analyze Chords</button>
+        <button id="btn-picker" class="btn">🎸 Chord Finder</button>
 
         <div class="song">
-          <span id="song-title">尚未載入樂譜</span>
+          <span id="song-title">No score loaded</span>
           <span id="song-artist" class="muted"></span>
         </div>
 
@@ -30,77 +30,77 @@
 
         <div id="ble-chip" class="chip" data-status="disconnected">
           <span class="chip-dot"></span>
-          <span id="ble-text">未連線</span>
+          <span id="ble-text">Disconnected</span>
           <span id="ble-battery" class="chip-batt" hidden></span>
         </div>
-        <button id="btn-connect" class="btn">連線吉他</button>
-        <button id="btn-ig" class="btn btn-ghost" title="切換 IG 直式 9:16 版面">IG 直式</button>
-        <button id="btn-clean" class="btn btn-ghost" title="錄影用：隱藏所有介面（Esc 或滑到邊緣復原）">乾淨畫面</button>
-        <button id="btn-panel" class="btn btn-ghost" title="收合側邊面板">☰</button>
+        <button id="btn-connect" class="btn">Connect Guitar</button>
+        <button id="btn-ig" class="btn btn-ghost" title="Switch to a vertical 9:16 layout">Vertical 9:16</button>
+        <button id="btn-clean" class="btn btn-ghost" title="For recording: hide the interface (press Esc or move to an edge to restore)">Clean View</button>
+        <button id="btn-panel" class="btn btn-ghost" title="Collapse sidebar">☰</button>
       </header>
 
       <main class="main">
         <aside id="side" class="side">
           <section class="panel">
-            <h3>音軌</h3>
-            <div id="tracks" class="tracks"><p class="muted small">載入樂譜後顯示。</p></div>
+            <h3>Tracks</h3>
+            <div id="tracks" class="tracks"><p class="muted small">Tracks appear after a score is loaded.</p></div>
           </section>
 
           <section class="panel">
-            <h3>燈光</h3>
+            <h3>LEDs</h3>
             <label class="row">
-              <span>正在彈</span>
+              <span>Current Note</span>
               <input id="color-main" type="color" value="#00e5ff" />
             </label>
             <label class="row">
-              <span>下一拍預告</span>
+              <span>Next Beat Preview</span>
               <input id="color-next" type="color" value="#ff2d95" />
             </label>
             <label class="row">
               <input id="toggle-next" type="checkbox" checked />
-              <span>顯示下一拍預告</span>
+              <span>Show Next Beat</span>
             </label>
             <label class="row">
-              <span>亮度</span>
+              <span>Brightness</span>
               <input id="brightness" type="range" min="10" max="100" value="85" />
               <output id="brightness-out">85%</output>
             </label>
             <label class="row">
               <input id="toggle-quality-color" type="checkbox" checked />
-              <span>依大小調上色</span>
+              <span>Color by Chord Quality</span>
             </label>
-            <p class="muted small">大調亮藍色、小調亮紅色。關掉就一律用上面的「正在彈」顏色。</p>
+            <p class="muted small">Major chords glow blue; minor chords glow red. Turn this off to use the Current Note color for all chords.</p>
             <label class="row">
               <input id="toggle-reverse" type="checkbox" />
-              <span>弦序反轉</span>
+              <span>Reverse String Order</span>
             </label>
             <p class="muted small">
-              亮燈位置左右／上下顛倒時，勾這個。
+              Enable this if the LED positions appear reversed horizontally or vertically.
             </p>
             <div class="row gap">
-              <button id="btn-test" class="btn btn-sm">測試亮燈</button>
-              <button id="btn-off" class="btn btn-sm">全部關燈</button>
+              <button id="btn-test" class="btn btn-sm">Test LEDs</button>
+              <button id="btn-off" class="btn btn-sm">Turn All Off</button>
             </div>
 
             <hr class="panel-sep" />
             <label class="row">
               <input id="toggle-paint" type="checkbox" />
-              <span>手動點燈</span>
+              <span>Manual Lighting</span>
             </label>
             <p class="muted small">
-              打開後<b>直接點螢幕指板</b>任一格就會亮（琴上同步）。多點幾格就排出自己的和弦，再點一次取消。
+              Turn this on and <b>click any fret on the on-screen fretboard</b> to light it on both the screen and guitar. Select multiple frets to build a chord; click again to turn a fret off.
             </p>
             <label class="row">
-              <span>手動燈色</span>
+              <span>Manual Color</span>
               <input id="color-paint" type="color" value="#39ff14" />
             </label>
             <div class="row gap">
-              <button id="btn-paint-clear" class="btn btn-sm">清空手動燈</button>
+              <button id="btn-paint-clear" class="btn btn-sm">Clear Manual Lights</button>
             </div>
             <hr class="panel-sep" />
-            <h3>音階亮燈</h3>
+            <h3>Scale Lighting</h3>
             <label class="row">
-              <span>根音</span>
+              <span>Root</span>
               <select id="scale-root">
                 <option value="0">C</option>
                 <option value="1">C#</option>
@@ -117,182 +117,182 @@
               </select>
             </label>
             <label class="row scale-interval-row">
-              <span>半音音程</span>
-              <input id="scale-intervals" type="text" value="2, 4, 5, 7, 9, 11" aria-label="從根音起算的遞增半音音程" />
+              <span>Semitone Intervals</span>
+              <input id="scale-intervals" type="text" value="2, 4, 5, 7, 9, 11" aria-label="Ascending semitone intervals from the root" />
             </label>
-            <p class="muted small">輸入根音以外的遞增半音數（1–11），逗號分隔；加上根音共 7–12 音。根音紅色，其餘藍色。</p>
+            <p class="muted small">Enter ascending semitone intervals above the root (1–11), separated by commas. Include 6–11 intervals for 7–12 notes total. The root is red; other notes are blue.</p>
             <div class="row gap">
-              <button id="btn-scale-send" class="btn btn-sm btn-primary">顯示並送出音階</button>
-              <button id="btn-scale-clear" class="btn btn-sm">清除音階</button>
+              <button id="btn-scale-send" class="btn btn-sm btn-primary">Show and Send Scale</button>
+              <button id="btn-scale-clear" class="btn btn-sm">Clear Scale</button>
             </div>
           </section>
 
           <section class="panel" id="panel-chord" hidden>
-            <h3>和弦譜</h3>
+            <h3>Chord Chart</h3>
             <label class="row">
-              <span>音源</span>
+              <span>Audio Source</span>
               <select id="play-source">
-                <option value="audio" selected>抓下來的音檔</option>
-                <option value="video">YouTube 影片</option>
-                <option value="stems">分軌混音</option>
+                <option value="audio" selected>Downloaded Audio</option>
+                <option value="video">YouTube Video</option>
+                <option value="stems">Stem Mixer</option>
               </select>
             </label>
             <p class="muted small" id="source-hint"></p>
             <label class="row">
-              <span>顯示</span>
+              <span>Display</span>
               <select id="display-mode">
-                <option value="chord" selected>和弦名</option>
-                <option value="degree">級數譜</option>
+                <option value="chord" selected>Chord Names</option>
+                <option value="degree">Scale Degrees</option>
               </select>
             </label>
             <label class="row">
-              <span>調（1 = ）</span>
+              <span>Key (1 = )</span>
               <select id="key-root"></select>
             </label>
             <p class="muted small" id="key-detected"></p>
             <label class="row">
-              <span>移調</span>
+              <span>Transpose</span>
               <input id="transpose" type="range" min="-6" max="6" step="1" value="0" />
               <output id="transpose-out">0</output>
             </label>
             <label class="row">
-              <span>第一拍</span>
+              <span>Downbeat</span>
               <select id="downbeat">
-                <option value="auto" selected>自動判定</option>
-                <option value="0">第 1 拍</option>
-                <option value="1">往後 1 拍</option>
-                <option value="2">往後 2 拍</option>
-                <option value="3">往後 3 拍</option>
+                <option value="auto" selected>Auto-detect</option>
+                <option value="0">Beat 1</option>
+                <option value="1">Shift by 1 beat</option>
+                <option value="2">Shift by 2 beats</option>
+                <option value="3">Shift by 3 beats</option>
               </select>
             </label>
-            <p class="muted small">小節線切錯（和弦都落在第 2、3 拍）時改這個，會重新分析一次。</p>
+            <p class="muted small">Adjust this if bar lines are misaligned (for example, chords all fall on beats 2 or 3). The audio will be reanalyzed.</p>
             <label class="row">
-              <span>移調夾</span>
+              <span>Capo</span>
               <input id="capo" type="range" min="0" max="7" step="1" value="0" />
-              <output id="capo-out">無</output>
+              <output id="capo-out">None</output>
             </label>
             <div class="row gap">
-              <button id="btn-suggest-capo" class="btn btn-sm">建議夾幾格</button>
+              <button id="btn-suggest-capo" class="btn btn-sm">Suggest Capo</button>
             </div>
             <p class="muted small" id="capo-hint"></p>
             <label class="row">
               <input id="toggle-autoscroll" type="checkbox" checked />
-              <span>跟著播放捲動</span>
+              <span>Auto-scroll During Playback</span>
             </label>
             <div class="row gap">
-              <button id="btn-export" class="btn btn-sm">匯出文字</button>
-              <button id="btn-reanalyze" class="btn btn-sm">重新分析</button>
+              <button id="btn-export" class="btn btn-sm">Export Text</button>
+              <button id="btn-reanalyze" class="btn btn-sm">Reanalyze</button>
             </div>
             <div class="row gap">
-              <button id="btn-edit-chords" class="btn btn-sm">✏️ 編輯和弦</button>
-              <button id="btn-reset-chords" class="btn btn-sm">還原自動判定</button>
+              <button id="btn-edit-chords" class="btn btn-sm">✏️ Edit Chords</button>
+              <button id="btn-reset-chords" class="btn btn-sm">Restore Automatic Results</button>
             </div>
             <p class="muted small" id="edit-count"></p>
             <div class="row gap">
-              <button id="btn-solo" class="btn btn-sm">🎸 抓 Solo 單音</button>
+              <button id="btn-solo" class="btn btn-sm">🎸 Extract Solo</button>
             </div>
-            <p class="muted small">單音會做成六線譜（像 GP 譜），可播放、指板會跟著亮。</p>
+            <p class="muted small">Extracted notes are shown as playable guitar tablature, with synchronized fretboard lighting.</p>
             <div class="row gap">
-              <button id="btn-back-tab" class="btn btn-sm">回到樂譜</button>
+              <button id="btn-back-tab" class="btn btn-sm">Back to Score</button>
             </div>
           </section>
 
           <section class="panel" id="panel-mixer" hidden>
-            <h3>分軌混音</h3>
+            <h3>Stem Mixer</h3>
             <div id="mixer-tracks" class="mixer"></div>
             <p class="muted small" id="mixer-hint">
-              按「音源 → 分軌混音」會用 Demucs 分成 6 軌，第一次要跑一下。
+              Select "Audio Source → Stem Mixer" to split the song into six stems with Demucs. The first run may take a while.
             </p>
             <div class="row gap">
-              <button id="btn-stem-solo" class="btn btn-sm">🎸 抓主奏 → 六線譜</button>
+              <button id="btn-stem-solo" class="btn btn-sm">🎸 Extract Lead → Tab</button>
             </div>
             <p class="muted small">
-              把<b>吉他軌</b>（已隔離，比整團乾淨）抓成主旋律六線譜，可播放、指板會亮。
+              Extract a lead tablature from the isolated <b>guitar stem</b>, which is cleaner than the full mix. Playback and fretboard lighting are synchronized.
             </p>
             <hr class="panel-sep" />
             <div class="row gap">
-              <button id="btn-export-mix" class="btn btn-sm">⬇ 匯出我的混音</button>
-              <button id="btn-export-stems" class="btn btn-sm">⬇ 匯出全部分軌</button>
+              <button id="btn-export-mix" class="btn btn-sm">⬇ Export My Mix</button>
+              <button id="btn-export-stems" class="btn btn-sm">⬇ Export All Stems</button>
             </div>
             <p class="muted small">
-              「我的混音」= 照你現在的音量／靜音／獨奏合成成一個 WAV；「全部分軌」= 把 6 軌打包成 zip（檔案較大）。
+              "My Mix" exports a WAV using your current volume, mute, and solo settings. "All Stems" downloads all six tracks as a ZIP (large file).
             </p>
           </section>
 
           <section class="panel" id="panel-lyrics" hidden>
-            <h3>歌詞</h3>
+            <h3>Lyrics</h3>
             <div class="row gap">
-              <button id="btn-auto-lyrics" class="btn btn-sm btn-primary">🤖 AI 自動抓歌詞</button>
-              <select id="whisper-model" title="模型越大越準但越慢">
-                <option value="small" selected>small（快）</option>
-                <option value="medium">medium（較準）</option>
-                <option value="large-v3">large（最準、很慢）</option>
+              <button id="btn-auto-lyrics" class="btn btn-sm btn-primary">🤖 Transcribe Lyrics with AI</button>
+              <select id="whisper-model" title="Larger models are more accurate but slower">
+                <option value="small" selected>Small (fast)</option>
+                <option value="medium">Medium (more accurate)</option>
+                <option value="large-v3">Large (most accurate, slow)</option>
               </select>
             </div>
             <p class="muted small">
-              先用 Demucs 把人聲分出來再辨識。唱歌本來就比說話難辨識，抓完請自己校一遍。
+              Demucs isolates vocals before transcription. Singing is harder to recognize than speech, so review and correct the result.
             </p>
             <p class="muted small">
-              自己貼歌詞進來（<b>一行一小節</b>），會自動配上拼音。
-              空一行代表那個小節沒有字。
+              Paste lyrics here (<b>one line per bar</b>) to add pinyin automatically.
+              Leave a line blank when a bar has no lyrics.
             </p>
-            <textarea id="lyrics-input" rows="6" placeholder="每一行對一個小節&#10;第二小節的字&#10;&#10;（這行空白＝第四小節沒字）"></textarea>
+            <textarea id="lyrics-input" rows="6" placeholder="One line per bar&#10;Lyrics for bar 2&#10;&#10;(A blank line means bar 4 has no lyrics)"></textarea>
             <label class="row">
-              <span>拼音</span>
+              <span>Pinyin</span>
               <select id="pinyin-style">
-                <option value="tone" selected>帶聲調 mā</option>
-                <option value="tone2">數字聲調 ma1</option>
-                <option value="plain">不標聲調 ma</option>
-                <option value="off">不要拼音</option>
+                <option value="tone" selected>Tone marks: mā</option>
+                <option value="tone2">Tone numbers: ma1</option>
+                <option value="plain">No tones: ma</option>
+                <option value="off">Off</option>
               </select>
             </label>
             <label class="row">
-              <span>從第幾小節</span>
+              <span>Start at Bar</span>
               <input id="lyrics-offset" type="number" min="1" value="1" />
             </label>
             <div class="row gap">
-              <button id="btn-apply-lyrics" class="btn btn-sm btn-primary">套用歌詞</button>
-              <button id="btn-clear-lyrics" class="btn btn-sm">清空</button>
+              <button id="btn-apply-lyrics" class="btn btn-sm btn-primary">Apply Lyrics</button>
+              <button id="btn-clear-lyrics" class="btn btn-sm">Clear</button>
             </div>
           </section>
 
           <section class="panel">
-            <h3>顯示</h3>
+            <h3>Display</h3>
             <label class="row">
-              <span>譜表</span>
+              <span>Notation</span>
               <select id="stave">
-                <option value="scoretab" selected>五線譜 + 六線譜</option>
-                <option value="tab">只有六線譜</option>
-                <option value="score">只有五線譜</option>
+                <option value="scoretab" selected>Standard Notation + Tab</option>
+                <option value="tab">Tab Only</option>
+                <option value="score">Standard Notation Only</option>
               </select>
             </label>
             <label class="row">
-              <span>版面</span>
+              <span>Layout</span>
               <select id="layout">
-                <option value="page" selected>直向捲動</option>
-                <option value="horizontal">橫向捲動</option>
+                <option value="page" selected>Vertical Scroll</option>
+                <option value="horizontal">Horizontal Scroll</option>
               </select>
             </label>
             <label class="row">
-              <span>縮放</span>
+              <span>Zoom</span>
               <input id="zoom" type="range" min="60" max="200" step="5" value="100" />
               <output id="zoom-out">100%</output>
             </label>
             <label class="row">
-              <span>指板格數</span>
+              <span>Visible Frets</span>
               <input id="frets" type="range" min="5" max="24" value="15" />
               <output id="frets-out">15</output>
             </label>
             <label class="row">
               <input id="toggle-fretboard" type="checkbox" checked />
-              <span>顯示螢幕指板</span>
+              <span>Show On-screen Fretboard</span>
             </label>
             <label class="row">
               <input id="toggle-jianpu" type="checkbox" />
-              <span>顯示數字簡譜</span>
+              <span>Show Numbered Notation</span>
             </label>
             <label class="row" id="jianpu-key-row" hidden>
-              <span>簡譜 1 =</span>
+              <span>Numbered Notation 1 =</span>
               <select id="jianpu-key"></select>
             </label>
           </section>
@@ -304,9 +304,9 @@
             <div id="drop-hint" class="drop-hint">
               <div class="drop-inner">
                 <div class="drop-icon">♪</div>
-                <p><b>把 Guitar Pro 檔案拖進來</b></p>
-                <p class="muted small">支援 .gp3 / .gp4 / .gp5 / .gpx / .gp、MusicXML、MIDI</p>
-                <p><button id="btn-demo" class="btn btn-sm">載入範例譜</button></p>
+                <p><b>Drop a Guitar Pro file here</b></p>
+                <p class="muted small">Supports .gp3 / .gp4 / .gp5 / .gpx / .gp, MusicXML, and MIDI</p>
+                <p><button id="btn-demo" class="btn btn-sm">Load Demo Score</button></p>
               </div>
             </div>
           </div>
@@ -317,7 +317,7 @@
 
           <div id="jianpu-wrap" class="jianpu-wrap" hidden>
             <div class="jianpu-head">
-              <span>數字簡譜</span>
+              <span>Numbered Notation</span>
               <span id="jianpu-info" class="muted small"></span>
             </div>
             <div id="jianpu" class="jianpu"></div>
@@ -326,10 +326,10 @@
           <div id="video-wrap" class="video-wrap" hidden>
             <div id="video-head" class="video-head">
               <span class="video-head-title">🎬 YouTube</span>
-              <span class="video-head-hint">拖這裡移動・右下角縮放</span>
+              <span class="video-head-hint">Drag to move · resize from the bottom-right corner</span>
             </div>
             <div id="video-host"></div>
-            <div id="video-resize" class="video-resize" title="拖這裡縮放大小"></div>
+            <div id="video-resize" class="video-resize" title="Drag to resize"></div>
           </div>
 
           <div id="pk-viewport" class="viewport pk-viewport" hidden>
@@ -339,112 +339,112 @@
           <div id="stems-view" class="viewport stems-view" hidden>
             <div class="stems-inner">
               <div class="stems-icon">🎚</div>
-              <p><b>分軌混音中</b></p>
-              <p class="muted small">用左邊各軌獨立調音量、靜音（M）、獨奏（S）。<br />下面播放列可以播放、調速、跳位。</p>
+              <p><b>Stem Mixer</b></p>
+              <p class="muted small">Adjust each track's volume, mute (M), and solo (S) on the left.<br />Use the controls below to play, change speed, or seek.</p>
             </div>
           </div>
 
           <div id="fretboard-wrap" class="fretboard-wrap">
             <canvas id="fretboard"></canvas>
             <div class="fretboard-legend">
-              <span>上＝第1弦（細）</span>
-              <span>下＝第6弦（粗）</span>
+              <span>Top = 1st string (thinnest)</span>
+              <span>Bottom = 6th string (thickest)</span>
             </div>
           </div>
         </section>
       </main>
 
       <footer class="transport">
-        <button id="btn-rewind" class="btn btn-icon" title="回到開頭">⏮</button>
-        <button id="btn-play" class="btn btn-icon btn-primary" title="播放 / 暫停（空白鍵）">▶</button>
-        <button id="btn-stop" class="btn btn-icon" title="停止">⏹</button>
+        <button id="btn-rewind" class="btn btn-icon" title="Rewind to start">⏮</button>
+        <button id="btn-play" class="btn btn-icon btn-primary" title="Play / pause (Space)">▶</button>
+        <button id="btn-stop" class="btn btn-icon" title="Stop">⏹</button>
 
         <div class="time"><span id="time-cur">00:00</span> / <span id="time-total">00:00</span></div>
 
         <div class="seek-wrap"><input id="seek" type="range" min="0" max="1000" value="0" /></div>
 
         <label class="ctl">
-          <span>速度</span>
+          <span>Speed</span>
           <input id="speed" type="range" min="25" max="150" step="5" value="100" />
           <output id="speed-out">100%</output>
         </label>
 
-        <button id="btn-metronome" class="btn btn-sm" title="節拍器">節拍器</button>
-        <button id="btn-countin" class="btn btn-sm" title="預備拍">預備拍</button>
-        <button id="btn-loop" class="btn btn-sm" title="循環播放">循環</button>
+        <button id="btn-metronome" class="btn btn-sm" title="Metronome">Metronome</button>
+        <button id="btn-countin" class="btn btn-sm" title="Count-in">Count-in</button>
+        <button id="btn-loop" class="btn btn-sm" title="Loop playback">Loop</button>
       </footer>
 
       <div id="chord-modal" class="modal" hidden>
         <div class="modal-card">
           <header class="modal-head">
-            <h2>自動抓和弦</h2>
+            <h2>Analyze Chords</h2>
             <button id="modal-close" class="btn btn-ghost btn-sm">✕</button>
           </header>
 
           <!-- 三種來源用分頁分開。全部疊在一起的話視窗會太高，
                螢幕矮一點下面的選檔按鈕就掉到畫面外，會以為壞了。 -->
           <div class="modal-tabs" role="tablist">
-            <button class="modal-tab on" data-pane="pane-search">打歌名</button>
-            <button class="modal-tab" data-pane="pane-url">YouTube 連結</button>
-            <button class="modal-tab" data-pane="pane-file">本機音檔</button>
+            <button class="modal-tab on" data-pane="pane-search">Search by Title</button>
+            <button class="modal-tab" data-pane="pane-url">YouTube URL</button>
+            <button class="modal-tab" data-pane="pane-file">Local Audio</button>
           </div>
 
           <!-- 進度放最上面：放在底部的話，搜尋結果一展開就被推到看不見的地方，
                下載新歌要等十幾秒，使用者會以為沒在動 -->
           <div id="job-progress" class="job" hidden>
             <div class="job-bar"><div id="job-fill" class="job-fill"></div></div>
-            <p id="job-msg" class="muted small">準備中…</p>
+            <p id="job-msg" class="muted small">Preparing…</p>
             <p id="job-elapsed" class="muted small"></p>
           </div>
 
           <div class="modal-body">
             <div class="pane" id="pane-search">
               <div class="row gap">
-                <input id="song-q" type="search" placeholder="歌名、或 歌手 歌名" />
-                <button id="btn-search" class="btn btn-primary">搜尋</button>
+                <input id="song-q" type="search" placeholder="Song title or artist and title" />
+                <button id="btn-search" class="btn btn-primary">Search</button>
               </div>
               <div id="search-results" class="results" hidden></div>
-              <p id="search-hint" class="muted small">打歌名按 Enter，挑一個結果就開始分析。</p>
+              <p id="search-hint" class="muted small">Enter a song title and press Enter, then choose a result to analyze.</p>
             </div>
 
             <div class="pane" id="pane-url" hidden>
               <div class="row gap">
                 <input id="yt-url" type="url" placeholder="https://www.youtube.com/watch?v=..." />
-                <button id="btn-yt" class="btn btn-primary">分析</button>
+                <button id="btn-yt" class="btn btn-primary">Analyze</button>
               </div>
-              <p id="yt-hint" class="muted small">貼整條網址都可以，含 &amp;list= 的也行（只抓那一首）。</p>
+              <p id="yt-hint" class="muted small">Paste the full URL, including playlist URLs with &amp;list= (only the selected video is used).</p>
             </div>
 
             <div class="pane" id="pane-file" hidden>
               <div class="row gap">
-                <button id="btn-audio-file" class="btn btn-primary">選擇音檔…</button>
-                <button id="btn-stems-file" class="btn">只分軌（不抓和弦）</button>
+                <button id="btn-audio-file" class="btn btn-primary">Choose Audio…</button>
+                <button id="btn-stems-file" class="btn">Split Stems Only</button>
               </div>
               <!-- accept 給寬一點：清單太窄的話 macOS 選檔視窗會把檔案變灰選不到，
                    看起來就像功能壞了。反正後面是 ffmpeg 在解，格式吃得很雜。 -->
               <input id="audio-input" type="file"
                 accept="audio/*,video/*,.mp3,.m4a,.m4v,.wav,.aac,.flac,.ogg,.opus,.aif,.aiff,.wma,.mp4,.mov,.webm,.mkv,.avi,.caf,.amr,.3gp"
                 hidden />
-              <p class="muted small">mp3 / m4a / wav / flac / aac / ogg，影片檔（mp4 / mov）也可以，會自動抽音軌。</p>
+              <p class="muted small">Supports mp3 / m4a / wav / flac / aac / ogg and video files (mp4 / mov); audio is extracted automatically.</p>
               <p id="file-name" class="muted small"></p>
             </div>
 
             <div class="field opts">
               <label class="row">
-                <span>每小節</span>
+                <span>Beats per Bar</span>
                 <select id="opt-bpb">
-                  <option value="4" selected>4 拍（4/4）</option>
-                  <option value="3">3 拍（3/4 華爾滋）</option>
-                  <option value="6">6 拍（6/8）</option>
-                  <option value="2">2 拍（2/4）</option>
+                  <option value="4" selected>4 beats (4/4)</option>
+                  <option value="3">3 beats (3/4 waltz)</option>
+                  <option value="6">6 beats (6/8)</option>
+                  <option value="2">2 beats (2/4)</option>
                 </select>
               </label>
               <label class="row">
                 <input id="opt-simple" type="checkbox" checked />
-                <span>只用三和音（不猜七和弦）</span>
+                <span>Triads only (skip seventh chords)</span>
               </label>
               <p class="muted small">
-                七和弦很難聽準，教學用建議勾著。取消勾選會嘗試 7 / m7 / maj7 / sus4。
+                Seventh chords are difficult to identify reliably. Keep this enabled for teaching use. Turn it off to also detect 7 / m7 / maj7 / sus4 chords.
               </p>
             </div>
 
@@ -453,7 +453,7 @@
       </div>
 
       <div id="toast" class="toast" hidden></div>
-      <div id="loading" class="loading" hidden><span class="spin"></span><span id="loading-text">載入中…</span></div>
+      <div id="loading" class="loading" hidden><span class="spin"></span><span id="loading-text">Loading…</span></div>
     </div>
 
     <script type="module" src="js/app.js"></script>

@@ -19,7 +19,7 @@ const $ = (id) => document.getElementById(id);
  */
 function on(node, type, handler, opts) {
   if (node) node.addEventListener(type, handler, opts);
-  else console.warn('[燈譜] 找不到要綁事件的元素，可能是頁面版本不同步，請強制重新載入（⌘⇧R）');
+  else console.warn('[GlowTab] UI element not found. The page may be out of sync; force reload (⌘⇧R).');
 }
 
 const el = {
@@ -285,7 +285,7 @@ function initAlphaTab() {
 
   api.soundFontLoad.on((e) => {
     const pct = e.total ? Math.floor((e.loaded / e.total) * 100) : 0;
-    busy(`載入音色庫 ${pct}%`);
+    busy(`Loading soundfont ${pct}%`);
     if (e.loaded >= e.total) busy(null);
   });
 
@@ -294,10 +294,10 @@ function initAlphaTab() {
   api.scoreLoaded.on((score) => {
     scoreLoaded = true;
     el.dropHint.classList.add('hide');
-    el.title.textContent = score.title || '（無標題）';
+    el.title.textContent = score.title || '(Untitled)';
     el.artist.textContent = [score.artist, score.album].filter(Boolean).join(' — ');
     renderTrackList(score);
-    busy('排版中…');
+    busy('Rendering score…');
   });
 
   api.renderFinished.on(() => {
@@ -307,7 +307,7 @@ function initAlphaTab() {
 
   api.error.on((err) => {
     busy(null);
-    toast(`載入失敗：${err?.message ?? err}`, true);
+    toast(`Failed to load: ${err?.message ?? err}`, true);
   });
 
   api.playerStateChanged.on((e) => {
@@ -343,8 +343,8 @@ function renderTrackList(score) {
     row.className = 'track' + (rendered.has(track.index) ? ' active' : '');
     row.innerHTML = `
       <span class="track-name"></span>
-      <span class="track-badge">${track.staves?.[0]?.tuning?.length ?? 6} 弦</span>`;
-    row.querySelector('.track-name').textContent = track.name || `音軌 ${track.index + 1}`;
+      <span class="track-badge">${track.staves?.[0]?.tuning?.length ?? 6} strings</span>`;
+    row.querySelector('.track-name').textContent = track.name || `Track ${track.index + 1}`;
     row.addEventListener('click', () => {
       api.renderTracks([track]);
       [...el.tracks.children].forEach((c) => c.classList.remove('active'));
@@ -499,7 +499,7 @@ function sendScale() {
       !/^\d+$/.test(intervalParts[index]) || interval < 1 || interval > 11 || (index > 0 && interval <= intervals[index - 1])
     )
   ) {
-    toast('請輸入 6–11 個遞增的半音音程（1–11），加上根音共 7–12 音。', true);
+    toast('Enter 6–11 ascending semitone intervals (1–11) for 7–12 notes including the root.', true);
     return;
   }
 
@@ -686,8 +686,8 @@ function enterChordMode(result) {
       onLoopChange: (range) => {
         // 選了區間就用自己的循環邏輯，不要讓 audio.loop 整首從頭跑
         audio.loop = settings.loop && !range;
-        if (!range) return toast('已取消選段');
-        toast(`循環第 ${range.fromBar + 1}–${range.toBar + 1} 小節${settings.loop ? '' : '（記得按「循環」）'}`);
+        if (!range) return toast('Loop selection cleared.');
+        toast(`Looping bars ${range.fromBar + 1}–${range.toBar + 1}${settings.loop ? '' : ' (press Loop to start)'}`);
       },
     });
   }
@@ -703,7 +703,7 @@ function enterChordMode(result) {
   const saved = loadEdits(result.media);
   if (Object.keys(saved).length) {
     chart.applyEdits(saved);
-    toast(`套用了 ${Object.keys(saved).length} 拍之前的手動修改`);
+    toast(`Restored ${Object.keys(saved).length} previous manual beat edits.`);
   }
   chart.setEditMode(false);
   el.editChords?.classList.remove('on');
@@ -729,7 +729,7 @@ function enterChordMode(result) {
   if (el.displayMode) el.displayMode.value = settings.chordDisplay ?? 'chord';
   chart.setDisplayMode(settings.chordDisplay ?? 'chord');
   if (el.keyDetected) {
-    el.keyDetected.textContent = `偵測到的調：${result.key}${result.keyMinor ? '（小調）' : '（大調）'}`;
+    el.keyDetected.textContent = `Detected key: ${result.key} (${result.keyMinor ? 'minor' : 'major'})`;
   }
 
   el.transpose.value = '0';
@@ -752,9 +752,9 @@ function enterChordMode(result) {
   videoPlayer?.pause();
   const hasVideo = !!result.videoId;
   el.playSource.options[1].disabled = !hasVideo;
-  el.sourceHint.textContent = hasVideo ? '' : '這首不是從 YouTube 抓的，沒有影片可以跟。';
+  el.sourceHint.textContent = hasVideo ? '' : 'This track was not sourced from YouTube, so there is no video to sync.';
 
-  el.title.textContent = result.title || '和弦譜';
+  el.title.textContent = result.title || 'Chord Chart';
   el.artist.textContent = `${Math.round(result.bpm)} BPM ・ ${result.key}`;
   el.timeCur.textContent = '00:00';
   el.timeTotal.textContent = fmtTime(result.duration * 1000);
@@ -807,7 +807,7 @@ audio.addEventListener('ended', () => {
   chart?.clearBeat();
 });
 audio.addEventListener('error', () => {
-  if (mode === 'chord') toast('音檔播不出來，可能是格式瀏覽器不支援', true);
+  if (mode === 'chord') toast('Unable to play this audio file. Its format may not be supported by the browser.', true);
 });
 
 /* ---- 級數譜 ---- */
@@ -837,7 +837,7 @@ on(el.keyRoot, 'change', () => {
 
 on(el.downbeat, 'change', async () => {
   const media = chart?.data?.media;
-  if (!media) return toast('先抓一首歌的和弦');
+  if (!media) return toast('Analyze a song first.');
 
   const raw = el.downbeat.value;
   const downbeat = raw === 'auto' ? null : Number(raw);
@@ -848,7 +848,7 @@ on(el.downbeat, 'change', async () => {
   const lyricsRaw = loadLyricsRaw(media);
 
   el.downbeat.disabled = true;
-  busy('重新切小節…');
+  busy('Recalculating bars…');
   try {
     const res = await fetch(`/api/rechord?bpb=${chart.data.beatsPerBar}&simple=${el.optSimple?.checked ? 1 : 0}`, {
       method: 'POST',
@@ -861,7 +861,7 @@ on(el.downbeat, 'change', async () => {
       }),
     });
     const payload = await readJson(res);
-    if (!res.ok) throw new Error(payload.error || `伺服器回應 ${res.status}`);
+    if (!res.ok) throw new Error(payload.error || `Server returned ${res.status}`);
 
     const result = await pollJob(payload.job, (pct, msg) => busy(`${msg} ${Math.round(pct)}%`));
     busy(null);
@@ -874,8 +874,8 @@ on(el.downbeat, 'change', async () => {
     }
     toast(
       downbeat === null
-        ? `回到自動判定（第 ${result.autoDownbeat + 1} 拍起算）`
-        : `第一拍改成往後 ${downbeat} 拍，重切了 ${result.bars.length} 小節`
+        ? `Restored automatic detection (starting on beat ${result.autoDownbeat + 1})`
+        : `Shifted the downbeat by ${downbeat} beat(s); recalculated ${result.bars.length} bars`
     );
   } catch (err) {
     busy(null);
@@ -888,7 +888,7 @@ on(el.downbeat, 'change', async () => {
 /* ---- 移調夾 ---- */
 
 function describeCapo(n) {
-  return n ? `第 ${n} 格` : '無';
+  return n ? `Fret ${n}` : 'None';
 }
 
 on(el.capo, 'input', () => {
@@ -902,23 +902,23 @@ on(el.capo, 'input', () => {
     const sounding = chart.soundingAt(beat);
     const shape = chart.nameAt(beat);
     el.capoHint.textContent =
-      n && sounding && shape !== sounding ? `例：聽到 ${sounding} 時你按 ${shape} 的指型` : '';
+      n && sounding && shape !== sounding ? `For example, play a ${shape} shape to sound ${sounding}` : '';
   }
   save();
 });
 
 on(el.suggestCapo, 'click', () => {
   const list = chart?.suggestCapo();
-  if (!list?.length) return toast('先抓一首歌的和弦');
+  if (!list?.length) return toast('Analyze a song first.');
 
   const best = list[0];
-  const top = list.slice(0, 3).map((s) => `${s.capo || '不夾'}${s.capo ? '格' : ''} ${Math.round(s.ratio * 100)}%`);
+  const top = list.slice(0, 3).map((s) => `${s.capo ? `Fret ${s.capo}` : 'No capo'} ${Math.round(s.ratio * 100)}%`);
   el.capo.value = String(best.capo);
   el.capo.dispatchEvent(new Event('input'));
   if (el.capoHint) {
-    el.capoHint.textContent = `夾 ${describeCapo(best.capo)}：${best.chords.slice(0, 6).join(' ')}`;
+    el.capoHint.textContent = `Capo at ${describeCapo(best.capo)}: ${best.chords.slice(0, 6).join(' ')}`;
   }
-  toast(`建議夾 ${describeCapo(best.capo)}（好按的和弦佔 ${Math.round(best.ratio * 100)}%）｜前三名：${top.join('、')}`);
+  toast(`Suggested capo: ${describeCapo(best.capo)} (${Math.round(best.ratio * 100)}% easy chords). Top options: ${top.join(', ')}`);
 });
 
 on(el.transpose, 'input', () => {
@@ -940,12 +940,12 @@ on(el.exportBtn, 'click', () => {
   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${(chart.data.title || '和弦譜').replace(/[/\\?%*:|"<>]/g, '_')}.txt`;
+  a.download = `${(chart.data.title || 'Chord Chart').replace(/[/\\?%*:|"<>]/g, '_')}.txt`;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(a.href);
-  toast('已匯出文字檔');
+  toast('Text file exported.');
 });
 
 /* ---- 歌詞（自己貼，自動配拼音） ---- */
@@ -983,7 +983,7 @@ async function buildLyrics(text, offsetBar, style) {
       body: JSON.stringify({ lines, style }),
     });
     const payload = await readJson(res);
-    if (!res.ok) throw new Error(payload.error || `伺服器回應 ${res.status}`);
+    if (!res.ok) throw new Error(payload.error || `Server returned ${res.status}`);
     pinyins = payload.pinyin ?? pinyins;
   }
 
@@ -995,7 +995,7 @@ async function buildLyrics(text, offsetBar, style) {
 }
 
 async function applyLyricsFromInput() {
-  if (!chart?.data) return toast('先抓一首歌的和弦');
+  if (!chart?.data) return toast('Analyze a song first.');
   const text = el.lyricsInput.value;
   const offsetBar = Math.max(0, (Number(el.lyricsOffset.value) || 1) - 1);
   const style = el.pinyinStyle.value;
@@ -1006,7 +1006,7 @@ async function applyLyricsFromInput() {
     chart.setLyrics(lyrics);
     saveLyricsRaw(chart.data.media, { text, offsetBar, style });
     const filled = lyrics.filter((l) => l?.text).length;
-    toast(filled ? `歌詞套到 ${filled} 個小節` : '歌詞是空的');
+    toast(filled ? `Lyrics applied to ${filled} bars.` : 'No lyrics entered.');
   } catch (err) {
     toast(err?.message ?? String(err), true);
   } finally {
@@ -1020,7 +1020,7 @@ on(el.clearLyrics, 'click', () => {
   el.lyricsInput.value = '';
   chart?.setLyrics([]);
   if (chart?.data) saveLyricsRaw(chart.data.media, null);
-  toast('已清空歌詞');
+  toast('Lyrics cleared.');
 });
 
 /* ---- 手動修和弦 ---- */
@@ -1053,37 +1053,37 @@ function saveEdits(media, edits) {
 function refreshEditCount() {
   if (!el.editCount) return;
   const n = chart?.edited.size ?? 0;
-  el.editCount.textContent = n ? `手動改過 ${n} 拍（有橘點的）` : '';
+  el.editCount.textContent = n ? `${n} manually edited beats (marked with orange dots)` : '';
 }
 
 on(el.editChords, 'click', () => {
-  if (!chart?.data) return toast('先抓一首歌的和弦');
+  if (!chart?.data) return toast('Analyze a song first.');
   const on_ = !chart.editMode;
   chart.setEditMode(on_);
   el.editChords.classList.toggle('on', on_);
   chart.render();
   chart.setBeat(chart.beatIndex, true);
-  toast(on_ ? '點和弦就能改。整段相同的會一起改。' : '離開編輯模式');
+  toast(on_ ? 'Click a chord to edit it. Matching consecutive chords are edited together.' : 'Chord editing closed.');
 });
 
 on(el.resetChords, 'click', () => {
   if (!chart?.data) return;
-  if (!chart.edited.size) return toast('沒有手動改過的和弦');
+  if (!chart.edited.size) return toast('There are no manually edited chords.');
   const media = chart.data.media;
   chart.clearEdits();
   saveEdits(media, {});
   refreshEditCount();
-  toast('已清掉手動修改，重新分析一次就會回到自動判定');
+  toast('Manual edits cleared. Reanalyze to restore automatic results.');
 });
 
 /* ---- 抓 Solo 單音 → 做成六線譜 ---- */
 
 on(el.soloBtn, 'click', async () => {
   const media = chart?.data?.media;
-  if (!media) return toast('先抓一首歌的和弦，再抓它的 solo');
+  if (!media) return toast('Analyze a song before extracting its solo.');
 
   el.soloBtn.disabled = true;
-  busy('抓 Solo 單音…');
+  busy('Extracting solo notes…');
   try {
     const res = await fetch(`/api/melody?bpb=${chart.data.beatsPerBar ?? 4}`, {
       method: 'POST',
@@ -1091,17 +1091,17 @@ on(el.soloBtn, 'click', async () => {
       body: JSON.stringify({ media, title: chart.data.title }),
     });
     const payload = await readJson(res);
-    if (!res.ok) throw new Error(payload.error || `伺服器回應 ${res.status}`);
+    if (!res.ok) throw new Error(payload.error || `Server returned ${res.status}`);
 
     const melody = await pollJob(payload.job, (pct, msg) => busy(`${msg} ${Math.round(pct)}%`));
-    if (!melody.notes?.length) throw new Error('沒抓到明顯的單音旋律（整團混音、或這段沒有主奏）');
+    if (!melody.notes?.length) throw new Error('No clear single-note melody found. The mix may be too dense, or this section may have no lead part.');
 
     // 交給 alphaTab 渲染成真正的六線譜；播放與亮燈就沿用樂譜模式
     audio.pause();
     exitChordMode();
     api.tex(melodyToTex(melody));
     busy(null);
-    toast(`${melodySummary(melody)}。節奏是自動對齊的，會有誤差。`);
+    toast(`${melodySummary(melody)}. Timing is aligned automatically and may be approximate.`);
   } catch (err) {
     busy(null);
     toast(err?.message ?? String(err), true);
@@ -1113,27 +1113,27 @@ on(el.soloBtn, 'click', async () => {
 /* ---- 分軌畫面：把「吉他軌」直接抓成主奏六線譜（比整團乾淨） ---- */
 on(el.stemSolo, 'click', async () => {
   const guitar = mixer?.tracks.find((t) => t.id === 'guitar');
-  if (!guitar?.url) return toast('先分軌，才有吉他軌可以抓主奏');
+  if (!guitar?.url) return toast('Split the stems first to extract a lead from the guitar track.');
 
   el.stemSolo.disabled = true;
-  busy('從吉他軌抓主奏…');
+  busy('Extracting lead from guitar stem…');
   try {
     const res = await fetch('/api/melody?bpb=4', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ media: guitar.url, title: `${el.title.textContent || '主奏'}（主奏）` }),
+      body: JSON.stringify({ media: guitar.url, title: `${el.title.textContent || 'Lead'} (Lead)` }),
     });
     const payload = await readJson(res);
-    if (!res.ok) throw new Error(payload.error || `伺服器回應 ${res.status}`);
+    if (!res.ok) throw new Error(payload.error || `Server returned ${res.status}`);
 
     const melody = await pollJob(payload.job, (pct, msg) => busy(`${msg} ${Math.round(pct)}%`));
-    if (!melody.notes?.length) throw new Error('這段吉他軌抓不到明顯的單音主奏');
+    if (!melody.notes?.length) throw new Error('No clear single-note lead found in this guitar stem.');
 
     mixer?.pause();
     exitStemsMode();
     api.tex(melodyToTex(melody));
     busy(null);
-    toast(`${melodySummary(melody)}。節奏是自動對齊的，會有誤差。`);
+    toast(`${melodySummary(melody)}. Timing is aligned automatically and may be approximate.`);
   } catch (err) {
     busy(null);
     toast(err?.message ?? String(err), true);
@@ -1188,8 +1188,8 @@ function enterPickerMode(chordName = null) {
   }
   if (chordName) picker.select(chordName);
 
-  el.title.textContent = '和弦盤';
-  el.artist.textContent = '點和弦 → 指板就會亮出來';
+  el.title.textContent = 'Chord Finder';
+  el.artist.textContent = 'Select a chord to light it on the fretboard.';
   el.timeCur.textContent = '00:00';
   el.timeTotal.textContent = '00:00';
   el.seek.value = '0';
@@ -1220,11 +1220,11 @@ function exitPickerMode(target = 'tab') {
 
 function restoreTabHeader() {
   if (api?.score) {
-    el.title.textContent = api.score.title || '（無標題）';
+    el.title.textContent = api.score.title || '(Untitled)';
     el.artist.textContent = [api.score.artist, api.score.album].filter(Boolean).join(' — ');
     el.timeTotal.textContent = fmtTime(endTime);
   } else {
-    el.title.textContent = '尚未載入樂譜';
+    el.title.textContent = 'No score loaded';
     el.artist.textContent = '';
     el.timeTotal.textContent = '00:00';
   }
@@ -1292,11 +1292,11 @@ async function readJson(res) {
   } catch {
     if (text.trimStart().startsWith('<')) {
       throw new Error(
-        '伺服器回的是網頁不是資料。通常是伺服器比網頁舊，或伺服器需要重啟：' +
-          '關掉那個終端機視窗，重新雙擊「啟動.command」，再按 ⌘⇧R 重新載入。'
+        'The server returned a web page instead of data. It may be out of date or need a restart: ' +
+          'close the terminal window, run the startup script again, then press ⌘⇧R to reload.'
       );
     }
-    throw new Error(`伺服器回應看不懂：${text.slice(0, 60) || '(空的)'}`);
+    throw new Error(`Unexpected server response: ${text.slice(0, 60) || '(empty)'}`);
   }
 }
 
@@ -1319,10 +1319,10 @@ function setJobRunning(running) {
   clearInterval(jobTimer);
   if (running) {
     jobStarted = Date.now();
-    el.jobElapsed.textContent = '已經 0 秒';
+    el.jobElapsed.textContent = '0 seconds elapsed';
     jobTimer = setInterval(() => {
       const s = Math.round((Date.now() - jobStarted) / 1000);
-      el.jobElapsed.textContent = `已經 ${s} 秒${s > 25 ? '（第一次抓這首歌要下載，會久一點）' : ''}`;
+      el.jobElapsed.textContent = `${s} seconds elapsed${s > 25 ? ' (the first download may take longer)' : ''}`;
     }, 1000);
   } else {
     jobTimer = null;
@@ -1334,29 +1334,29 @@ async function pollJob(jobId, onProgress = null) {
   for (;;) {
     await new Promise((r) => setTimeout(r, 400));
     const res = await fetch(`/api/job/${jobId}`);
-    if (!res.ok) throw new Error('伺服器沒有回應這個工作');
+    if (!res.ok) throw new Error('The server did not return this job.');
     const job = await readJson(res);
-    if (onProgress) onProgress(job.progress ?? 0, job.message ?? '處理中');
-    else setJobProgress(job.progress ?? 0, job.message ?? '處理中');
+    if (onProgress) onProgress(job.progress ?? 0, job.message ?? 'Processing');
+    else setJobProgress(job.progress ?? 0, job.message ?? 'Processing');
     if (job.state === 'done') return job.result;
-    if (job.state === 'error') throw new Error(job.message || '分析失敗');
+    if (job.state === 'error') throw new Error(job.message || 'Analysis failed.');
   }
 }
 
 async function startAnalysis(request) {
-  setJobProgress(2, '送出中…');
+  setJobProgress(2, 'Submitting…');
   setJobRunning(true);
   el.ytBtn.disabled = true;
   el.audioFileBtn.disabled = true;
   try {
     const res = await fetch(request.url, request.init);
     const payload = await readJson(res);
-    if (!res.ok) throw new Error(payload.error || `伺服器回應 ${res.status}`);
+    if (!res.ok) throw new Error(payload.error || `Server returned ${res.status}`);
     const result = await pollJob(payload.job);
     lastAnalysisSource = request;
     closeChordModal();
     enterChordMode(result);
-    toast(`抓到 ${result.bars.length} 小節和弦`);
+    toast(`Detected chords in ${result.bars.length} bars.`);
   } catch (err) {
     setJobProgress(100, '');
     el.jobBox.hidden = true;
@@ -1381,7 +1381,7 @@ function youtubeRequest(url) {
 
 on(el.ytBtn, 'click', () => {
   const url = el.ytUrl.value.trim();
-  if (!url) return toast('先貼上 YouTube 連結');
+  if (!url) return toast('Paste a YouTube URL first.');
   startAnalysis(youtubeRequest(url));
 });
 
@@ -1396,22 +1396,23 @@ function fmtDuration(sec) {
 
 function fmtViews(n) {
   if (!Number.isFinite(n)) return '';
-  if (n >= 1e8) return `${Math.round(n / 1e8)} 億次`;
-  if (n >= 1e4) return `${Math.round(n / 1e4)} 萬次`;
-  return `${n} 次`;
+  if (n >= 1e8) return `${(n / 1e9).toFixed(1)}B views`;
+  if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M views`;
+  if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K views`;
+  return `${n} views`;
 }
 
 let searching = false;
 
 async function searchSongs() {
   const q = el.songQ.value.trim();
-  if (q.length < 2) return toast('至少打兩個字');
+  if (q.length < 2) return toast('Enter at least two characters.');
   if (searching) return;
 
   searching = true;
   el.searchBtn.disabled = true;
   el.searchResults.hidden = false;
-  el.searchResults.innerHTML = '<p class="muted small">搜尋中…（大約 5–10 秒）</p>';
+  el.searchResults.innerHTML = '<p class="muted small">Searching… (about 5–10 seconds)</p>';
 
   try {
     const res = await fetch('/api/search', {
@@ -1420,7 +1421,7 @@ async function searchSongs() {
       body: JSON.stringify({ q, limit: 8 }),
     });
     const payload = await readJson(res);
-    if (!res.ok) throw new Error(payload.error || `伺服器回應 ${res.status}`);
+    if (!res.ok) throw new Error(payload.error || `Server returned ${res.status}`);
     renderSearchResults(payload.results ?? []);
   } catch (err) {
     el.searchResults.innerHTML = '';
@@ -1435,7 +1436,7 @@ async function searchSongs() {
 function renderSearchResults(results) {
   el.searchResults.innerHTML = '';
   if (!results.length) {
-    el.searchResults.innerHTML = '<p class="muted small">找不到，換個關鍵字試試。</p>';
+    el.searchResults.innerHTML = '<p class="muted small">No results. Try another search.</p>';
     return;
   }
 
@@ -1448,7 +1449,7 @@ function renderSearchResults(results) {
         <span class="result-title"></span>
         <span class="result-meta"></span>
       </span>
-      <span class="result-go">分析 →</span>`;
+      <span class="result-go">Analyze →</span>`;
     row.querySelector('.result-title').textContent = r.title;
     row.querySelector('.result-meta').textContent = [
       r.uploader,
@@ -1458,7 +1459,7 @@ function renderSearchResults(results) {
 
     row.addEventListener('click', () => {
       if (r.duration && r.duration > 900) {
-        toast('這首超過 15 分鐘，可能是合輯，分析出來會很長', true);
+        toast('This video is over 15 minutes long. It may be a compilation, and analysis may take a while.', true);
       }
       startAnalysis(youtubeRequest(r.url));
     });
@@ -1497,14 +1498,14 @@ on(el.audioInput, 'change', (e) => {
   if (!file) return;
 
   const mb = file.size / 1024 / 1024;
-  if (el.fileName) el.fileName.textContent = `已選：${file.name}（${mb.toFixed(1)} MB）`;
+  if (el.fileName) el.fileName.textContent = `Selected: ${file.name} (${mb.toFixed(1)} MB)`;
 
   // 先在這裡擋，不要傳到一半才被伺服器拒絕——那時連線已經斷了，
   // 瀏覽器只會說「Failed to fetch」，看不出真正原因
   if (mb > MAX_UPLOAD_MB) {
     return toast(
-      `檔案 ${mb.toFixed(0)}MB，超過 ${MAX_UPLOAD_MB}MB 上限。先轉成 mp3 再上傳：` +
-        `終端機執行 ffmpeg -i "你的檔案" -b:a 192k 輸出.mp3`,
+      `File is ${mb.toFixed(0)} MB, exceeding the ${MAX_UPLOAD_MB} MB limit. Convert it to MP3 before uploading: ` +
+        `run ffmpeg -i "input-file" -b:a 192k output.mp3 in a terminal.`,
       true
     );
   }
@@ -1535,20 +1536,20 @@ function warnBackend(message) {
 fetch('/api/health')
   .then((r) => (r.ok ? readJson(r) : null))
   .then((h) => {
-    if (!h) return warnBackend('伺服器回應不正常，抓和弦功能可能不能用。');
+    if (!h) return warnBackend('The server response is invalid. Chord analysis may not work.');
     if ((h.api ?? 0) < NEED_API) {
       return warnBackend(
-        `伺服器是舊版的（API ${h.api ?? '?'}，需要 ${NEED_API}）。` +
-          '請關掉那個終端機視窗，重新雙擊「啟動.command」。'
+        `The server is out of date (API ${h.api ?? '?'}, version ${NEED_API} required). ` +
+          'Close the terminal window and run the startup script again.'
       );
     }
     if (!h.ytdlp) {
-      warnBackend('找不到 yt-dlp，搜尋與 YouTube 下載不能用（本機音檔還是可以）。');
+      warnBackend('yt-dlp was not found. Search and YouTube downloads are unavailable, but local audio still works.');
     }
   })
   .catch(() => {
-    warnBackend('沒有偵測到本機伺服器。請關掉這個分頁，改用「啟動.command」開啟——直接開 index.html 抓和弦不會動。');
-    if (el.chordBtn) el.chordBtn.title = '需要用 啟動.command 開啟';
+    warnBackend('Local server not detected. Close this tab and launch the app with its startup script. Opening index.html directly disables chord analysis.');
+    if (el.chordBtn) el.chordBtn.title = 'Launch with the startup script';
   });
 
 /* ---------------- 藍牙 UI ---------------- */
@@ -1557,14 +1558,14 @@ function renderBle() {
   const s = guitar.snapshot();
   el.bleChip.dataset.status = s.status;
   el.bleText.textContent =
-    s.status === 'connected' ? s.name || 'LiteJam' : s.status === 'connecting' ? '連線中…' : '未連線';
+    s.status === 'connected' ? s.name || 'LiteJam' : s.status === 'connecting' ? 'Connecting…' : 'Disconnected';
   if (s.battery != null && s.status === 'connected') {
     el.bleBatt.hidden = false;
     el.bleBatt.textContent = `🔋 ${s.battery}%`;
   } else {
     el.bleBatt.hidden = true;
   }
-  el.connect.textContent = s.status === 'connected' ? '中斷連線' : '連線吉他';
+  el.connect.textContent = s.status === 'connected' ? 'Disconnect' : 'Connect Guitar';
 }
 
 guitar.addEventListener('state', renderBle);
@@ -1574,17 +1575,17 @@ guitar.addEventListener('error', (e) => toast(e.detail.message, true));
 on(el.connect, 'click', async () => {
   if (guitar.status === 'connected') {
     guitar.disconnect();
-    toast('已中斷連線');
+    toast('Disconnected.');
     return;
   }
   if (!guitar.supported) {
-    toast('這個瀏覽器不支援 Web Bluetooth，請改用 Chrome / Edge（Safari 不支援）。', true);
+    toast('This browser does not support Web Bluetooth. Use Chrome or Edge; Safari is not supported.', true);
     return;
   }
   try {
     const res = await guitar.connect();
     if (res) {
-      toast(`已連上 ${res.name || 'LiteJam'}`);
+      toast(`Connected to ${res.name || 'LiteJam'}.`);
       // 連上先閃一下，確認燈真的通了
       await testLeds();
     }
@@ -1613,7 +1614,7 @@ async function testLeds() {
 on(el.test, 'click', testLeds);
 on(el.off, 'click', () => {
   clearLeds();
-  toast('已關燈');
+  toast('All LEDs turned off.');
 });
 
 /* ---------------- 檔案載入 ---------------- */
@@ -1623,27 +1624,27 @@ async function loadFile(file) {
   if (mode === 'picker') exitPickerMode('tab');
   if (mode === 'chord') exitChordMode();
   if (mode === 'stems') exitStemsMode();
-  busy(`載入 ${file.name}…`);
+  busy(`Loading ${file.name}…`);
   try {
     const buf = new Uint8Array(await file.arrayBuffer());
     const ok = api.load(buf, [0]);
     if (!ok) {
       busy(null);
-      toast(`看不懂這個檔案格式：${file.name}`, true);
+      toast(`Unsupported file format: ${file.name}`, true);
     }
   } catch (err) {
     busy(null);
-    toast(`載入失敗：${err?.message ?? err}`, true);
+    toast(`Failed to load: ${err?.message ?? err}`, true);
   }
 }
 
 async function loadDemo() {
-  busy('載入範例譜…');
+  busy('Loading demo score…');
   try {
     const res = await fetch('sample/demo.gp');
-    if (!res.ok) throw new Error(`找不到 sample/demo.gp（${res.status}）`);
+    if (!res.ok) throw new Error(`Could not find sample/demo.gp (${res.status})`);
     const buf = new Uint8Array(await res.arrayBuffer());
-    if (!api.load(buf, [0])) throw new Error('範例譜解析失敗');
+    if (!api.load(buf, [0])) throw new Error('Could not parse the demo score.');
   } catch (err) {
     busy(null);
     toast(err?.message ?? String(err), true);
@@ -1675,12 +1676,12 @@ on(el.viewport, 'drop', (e) => loadFile(e.dataTransfer?.files?.[0]));
 /* ---------------- 播放控制 ---------------- */
 
 on(el.play, 'click', () => {
-  if (mode === 'picker') return toast('和弦盤沒有東西可以播放，點和弦就會亮燈');
+  if (mode === 'picker') return toast('There is nothing to play in Chord Finder. Select a chord to light it.');
   if (mode === 'chord' || mode === 'stems') {
     const src = clock();
     if (src.paused) {
       const p = src.play();
-      if (p?.catch) p.catch((err) => toast(`播不出來：${err.message}`, true));
+      if (p?.catch) p.catch((err) => toast(`Playback failed: ${err.message}`, true));
       el.play.textContent = '⏸';
       startChordTick();
     } else {
@@ -1688,7 +1689,7 @@ on(el.play, 'click', () => {
     }
     return;
   }
-  if (!scoreLoaded) return toast('先開一份樂譜，或按「抓和弦」分析音檔');
+  if (!scoreLoaded) return toast('Open a score or select Analyze Chords to analyze an audio file.');
   api.playPause();
 });
 
@@ -1762,10 +1763,10 @@ async function setPlaySource(next) {
     if (!videoId) {
       el.playSource.value = 'audio';
       playSource = 'audio';
-      el.sourceHint.textContent = '這首不是從 YouTube 抓的，沒有影片可以跟。';
-      return toast('這首歌沒有對應的 YouTube 影片', true);
+      el.sourceHint.textContent = 'This track was not sourced from YouTube, so there is no video to sync.';
+      return toast('There is no YouTube video associated with this track.', true);
     }
-    busy('載入 YouTube 播放器…');
+    busy('Loading YouTube player…');
     try {
       videoPlayer ??= new VideoPlayer(el.videoHost, {
         onStateChange: (playing) => {
@@ -1785,7 +1786,7 @@ async function setPlaySource(next) {
       videoPlayer.currentTime = at;
       el.videoWrap.hidden = false;
       playSource = 'video';
-      el.sourceHint.textContent = '譜跟著影片跑。影片本身的播放鍵也可以用。';
+      el.sourceHint.textContent = 'The score follows the video. You can also use the video player controls.';
       if (wasPlaying) videoPlayer.play();
     } catch (err) {
       el.playSource.value = 'audio';
@@ -1805,7 +1806,7 @@ async function setPlaySource(next) {
       playSource = 'stems';
       el.videoWrap.hidden = true;
       el.panelMixer.hidden = false;
-      el.sourceHint.textContent = '每軌可以獨立調大小。M 靜音、S 獨奏。';
+      el.sourceHint.textContent = 'Adjust each track independently. M = mute; S = solo.';
       if (wasPlaying) mixer.play().catch(() => {});
     } catch (err) {
       busy(null);
@@ -1837,8 +1838,8 @@ function renderMixer() {
     row.innerHTML = `
       <span class="mx-name"></span>
       <input class="mx-vol" type="range" min="0" max="150" value="${Math.round(track.volume * 100)}" />
-      <button class="mx-btn mx-mute" title="靜音">M</button>
-      <button class="mx-btn mx-solo" title="獨奏">S</button>`;
+      <button class="mx-btn mx-mute" title="Mute">M</button>
+      <button class="mx-btn mx-solo" title="Solo">S</button>`;
     row.querySelector('.mx-name').textContent = track.label;
 
     const vol = row.querySelector('.mx-vol');
@@ -1861,22 +1862,22 @@ function renderMixer() {
 }
 
 async function loadStems(media = chart?.data?.media) {
-  if (!media) throw new Error('先抓一首歌的和弦');
+  if (!media) throw new Error('Analyze a song first.');
 
-  busy('分軌中…');
+  busy('Splitting stems…');
   const res = await fetch('/api/stems', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ media }),
   });
   const payload = await readJson(res);
-  if (!res.ok) throw new Error(payload.error || `伺服器回應 ${res.status}`);
+  if (!res.ok) throw new Error(payload.error || `Server returned ${res.status}`);
 
   const result = await pollJob(payload.job, (pct, msg) => busy(`${msg} ${Math.round(pct)}%`));
-  if (!result.stems?.length) throw new Error('沒有分出任何音軌');
+  if (!result.stems?.length) throw new Error('No stems were created.');
 
   mixer ??= new StemMixer();
-  await mixer.load(result.stems, (done, total) => busy(`載入音軌 ${done}/${total}`));
+  await mixer.load(result.stems, (done, total) => busy(`Loading tracks ${done}/${total}`));
   stemsMedia = media;
   renderMixer();
   busy(null);
@@ -1932,8 +1933,8 @@ async function enterStemsMode(media, title) {
   mixer.setRate(settings.speed / 100);
   mixer.currentTime = 0;
 
-  el.title.textContent = title || '分軌混音';
-  el.artist.textContent = '各軌獨立音量・靜音(M)・獨奏(S)';
+  el.title.textContent = title || 'Stem Mixer';
+  el.artist.textContent = 'Independent track volume · mute (M) · solo (S)';
   el.timeCur.textContent = '00:00';
   el.timeTotal.textContent = fmtTime(mixer.duration * 1000);
   el.seek.value = '0';
@@ -1964,13 +1965,13 @@ async function separateFile(file) {
   const mb = file.size / 1024 / 1024;
   if (mb > MAX_UPLOAD_MB) {
     return toast(
-      `檔案 ${mb.toFixed(0)}MB，超過 ${MAX_UPLOAD_MB}MB 上限。先轉成 mp3 再上傳：` +
-        `終端機執行 ffmpeg -i "你的檔案" -b:a 192k 輸出.mp3`,
+      `File is ${mb.toFixed(0)} MB, exceeding the ${MAX_UPLOAD_MB} MB limit. Convert it to MP3 before uploading: ` +
+        `run ffmpeg -i "input-file" -b:a 192k output.mp3 in a terminal.`,
       true
     );
   }
   closeChordModal();
-  busy('上傳中…');
+  busy('Uploading…');
   try {
     const res = await fetch(`/api/upload-audio?name=${encodeURIComponent(file.name)}`, {
       method: 'POST',
@@ -1978,9 +1979,9 @@ async function separateFile(file) {
       headers: { 'Content-Type': 'application/octet-stream' },
     });
     const payload = await readJson(res);
-    if (!res.ok) throw new Error(payload.error || `伺服器回應 ${res.status}`);
+    if (!res.ok) throw new Error(payload.error || `Server returned ${res.status}`);
     const ok = await enterStemsMode(payload.media, payload.title);
-    if (ok) toast('分軌完成，各軌可以獨立調整');
+    if (ok) toast('Stem splitting complete. Each track can now be adjusted independently.');
   } catch (err) {
     busy(null);
     toast(err?.message ?? String(err), true);
@@ -2027,21 +2028,21 @@ function downloadUrl(url, filename) {
 }
 
 function safeName(s) {
-  return String(s || '分軌').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60);
+  return String(s || 'Stems').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60);
 }
 
 on(el.exportMix, 'click', async () => {
-  if (!mixer?.ready) return toast('先分軌，才有東西可以匯出');
+  if (!mixer?.ready) return toast('Split the stems before exporting.');
   el.exportMix.disabled = true;
-  busy('照你的設定合成混音…');
+  busy('Rendering your mix…');
   try {
     const rendered = await mixer.renderMix();
     const blob = audioBufferToWav(rendered);
     const url = URL.createObjectURL(blob);
-    downloadUrl(url, `${safeName(el.title.textContent)}_我的混音.wav`);
+    downloadUrl(url, `${safeName(el.title.textContent)}_my_mix.wav`);
     setTimeout(() => URL.revokeObjectURL(url), 4000);
     busy(null);
-    toast('已匯出你設定好的混音');
+    toast('Your mix has been exported.');
   } catch (err) {
     busy(null);
     toast(err?.message ?? String(err), true);
@@ -2051,9 +2052,9 @@ on(el.exportMix, 'click', async () => {
 });
 
 on(el.exportStems, 'click', () => {
-  if (!stemsMedia) return toast('先分軌，才有分軌可以匯出');
+  if (!stemsMedia) return toast('Split the stems before exporting them.');
   downloadUrl(`/api/stems-zip?media=${encodeURIComponent(stemsMedia)}`);
-  toast('開始下載全部分軌（zip，檔案較大，請稍等）');
+  toast('Downloading all stems as a ZIP. This large file may take a while.');
 });
 
 /* ---- YouTube 影片視窗：可拖動、可縮放（位置/大小記在瀏覽器裡） ---- */
@@ -2147,10 +2148,10 @@ function segmentsToBarLines(segments, bars) {
 
 on(el.autoLyrics, 'click', async () => {
   const media = chart?.data?.media;
-  if (!media) return toast('先抓一首歌的和弦');
+  if (!media) return toast('Analyze a song first.');
 
   el.autoLyrics.disabled = true;
-  busy('準備抓歌詞…');
+  busy('Preparing lyric transcription…');
   try {
     const res = await fetch('/api/lyrics-auto', {
       method: 'POST',
@@ -2158,11 +2159,11 @@ on(el.autoLyrics, 'click', async () => {
       body: JSON.stringify({ media, model: el.whisperModel.value, language: 'zh' }),
     });
     const payload = await readJson(res);
-    if (!res.ok) throw new Error(payload.error || `伺服器回應 ${res.status}`);
+    if (!res.ok) throw new Error(payload.error || `Server returned ${res.status}`);
 
     const result = await pollJob(payload.job, (pct, msg) => busy(`${msg} ${Math.round(pct)}%`));
     const segments = result.segments ?? [];
-    if (!segments.length) throw new Error('沒有辨識到歌詞（可能是純樂器演奏）');
+    if (!segments.length) throw new Error('No lyrics were detected. The track may be instrumental.');
 
     const lines = segmentsToBarLines(segments, chart.data.bars);
     // 去掉尾端的空行，並把起始小節挪到第一句話的位置
@@ -2175,7 +2176,7 @@ on(el.autoLyrics, 'click', async () => {
     el.lyricsOffset.value = String(first + 1);
     busy(null);
     await applyLyricsFromInput();
-    toast(`辨識到 ${segments.length} 句，已放到第 ${first + 1} 小節之後。記得自己校一遍。`);
+    toast(`Transcribed ${segments.length} lines starting at bar ${first + 1}. Review the results for accuracy.`);
   } catch (err) {
     busy(null);
     toast(err?.message ?? String(err), true);
@@ -2202,7 +2203,7 @@ toggleButton(el.loop, 'loop', (v) => {
   audio.loop = v && !chart?.loopRange;
   if (v && chart?.loopRange) {
     const r = chart.loopRange;
-    toast(`只循環第 ${r.fromBar + 1}–${r.toBar + 1} 小節`);
+    toast(`Looping bars ${r.fromBar + 1}–${r.toBar + 1}.`);
   }
 });
 
@@ -2278,7 +2279,7 @@ function renderJianpu() {
   el.jianpu.innerHTML = jianpuHtml(data);
   if (el.jianpuInfo) {
     const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    el.jianpuInfo.textContent = `1 = ${names[keyRoot]}　共 ${data.bars.length} 小節（取最高音當旋律）`;
+    el.jianpuInfo.textContent = `1 = ${names[keyRoot]} · ${data.bars.length} bars (melody follows the highest note)`;
   }
 }
 
@@ -2287,7 +2288,7 @@ on(el.toggleJianpu, 'change', () => {
   if (el.jianpuKeyRow) el.jianpuKeyRow.hidden = !settings.showJianpu;
   save();
   renderJianpu();
-  if (settings.showJianpu && mode !== 'tab') toast('簡譜是給樂譜看的，先載入一份譜或抓 Solo 單音');
+  if (settings.showJianpu && mode !== 'tab') toast('Numbered notation requires a score. Load a score or extract a solo first.');
 });
 
 on(el.jianpuKey, 'change', renderJianpu);
@@ -2355,7 +2356,7 @@ on(el.ig, 'click', () => {
 on(el.clean, 'click', () => {
   const on = document.body.classList.toggle('clean');
   el.clean.classList.toggle('on', on);
-  if (on) toast('按 Esc 復原介面');
+  if (on) toast('Press Esc to restore the interface.');
 });
 
 let panelToggledByUser = false;
@@ -2405,11 +2406,11 @@ renderBle();
 if (window.innerWidth <= 900) document.body.classList.add('no-panel');
 
 if (!guitar.supported) {
-  el.connect.title = '需要 Chrome / Edge / Opera';
+  el.connect.title = 'Chrome, Edge, or Opera is required';
 }
 
 if (typeof alphaTab === 'undefined') {
-  toast('找不到 alphaTab，請確認 vendor 資料夾完整。', true);
+  toast('alphaTab was not found. Check that the vendor folder is present.', true);
 } else {
   initAlphaTab();
 }

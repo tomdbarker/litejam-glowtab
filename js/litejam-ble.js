@@ -128,7 +128,7 @@ export class LiteJam extends EventTarget {
 
   async connect({ allDevices = false } = {}) {
     if (!this.supported) {
-      this.lastError = '這個瀏覽器不支援 Web Bluetooth，請用 Chrome / Edge / Opera（Safari 不支援）。';
+      this.lastError = 'This browser does not support Web Bluetooth. Use Chrome, Edge, or Opera; Safari is not supported.';
       this._emit('error', { message: this.lastError });
       throw new Error(this.lastError);
     }
@@ -204,7 +204,7 @@ export class LiteJam extends EventTarget {
       }
 
       if (!this.hasStatus || !this.hasControl) {
-        const msg = '這個裝置不是 LiteJam 吉他（找不到必要的 BLE 服務 0x00FF / 0x00EE）。';
+        const msg = 'This device is not a LiteJam guitar (required BLE services 0x00FF / 0x00EE were not found).';
         this.lastError = msg;
         try {
           this._server.disconnect();
@@ -288,7 +288,7 @@ export class LiteJam extends EventTarget {
         else await chr.writeValue(payload);
         return true;
       } catch (err) {
-        this._emit('error', { message: `寫入失敗（${key}）：${err?.message ?? err}` });
+        this._emit('error', { message: `Write failed (${key}): ${err?.message ?? err}` });
         return false;
       }
     });
@@ -322,17 +322,17 @@ export class LiteJam extends EventTarget {
   }
 
   sendPattern(bytes) {
-    if (bytes.length !== 4) throw new Error('Pattern 需要 4 bytes');
+    if (bytes.length !== 4) throw new Error('Pattern requires 4 bytes.');
     return this._write('pattern', bytes);
   }
 
   sendParty(bytes) {
-    if (bytes.length !== 10) throw new Error('Party 需要 10 bytes');
+    if (bytes.length !== 10) throw new Error('Party requires 10 bytes.');
     return this._write('party', bytes);
   }
 
   sendSoundReact(bytes) {
-    if (bytes.length !== 9) throw new Error('SoundReact 需要 9 bytes');
+    if (bytes.length !== 9) throw new Error('SoundReact requires 9 bytes.');
     return this._write('soundReact', bytes);
   }
 }

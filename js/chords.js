@@ -405,7 +405,7 @@ export function allVoicings(name) {
       base,
       fingers: meta.fingers ?? countFingers(frets),
       // 有用到開放弦的就是「開放和弦」，其餘按最低的按壓格標把位
-      label: hasOpen ? '開放' : `第 ${base} 格`,
+      label: hasOpen ? 'Open' : `Fret ${base}`,
     });
   };
 

@@ -9,8 +9,8 @@ const ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const ROOT_FLATS = { 'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb' };
 
 const QUALITIES = [
-  { suffix: '', label: '大三' },
-  { suffix: 'm', label: '小三' },
+  { suffix: '', label: 'Major' },
+  { suffix: 'm', label: 'Minor' },
   { suffix: '7', label: '7' },
   { suffix: 'm7', label: 'm7' },
   { suffix: 'maj7', label: 'maj7' },
@@ -18,7 +18,7 @@ const QUALITIES = [
   { suffix: 'sus2', label: 'sus2' },
   { suffix: 'dim', label: 'dim' },
   { suffix: 'aug', label: 'aug' },
-  { suffix: '5', label: '強力和弦' },
+  { suffix: '5', label: 'Power Chord' },
 ];
 
 const STORE_KEY = 'litejam-progression';
@@ -81,11 +81,11 @@ export class ChordPicker {
     this.el.innerHTML = `
       <div class="pk-picker">
         <div class="pk-row">
-          <span class="pk-label">根音</span>
+          <span class="pk-label">Root</span>
           <div class="pk-roots"></div>
         </div>
         <div class="pk-row">
-          <span class="pk-label">種類</span>
+          <span class="pk-label">Quality</span>
           <div class="pk-quals"></div>
         </div>
       </div>
@@ -93,8 +93,8 @@ export class ChordPicker {
       <div class="pk-current">
         <h2 class="pk-name"></h2>
         <div class="pk-actions">
-          <button class="btn btn-sm pk-add">＋ 加入進行</button>
-          <button class="btn btn-sm pk-off">關燈</button>
+          <button class="btn btn-sm pk-add">＋ Add to Progression</button>
+          <button class="btn btn-sm pk-off">Turn Off</button>
         </div>
       </div>
 
@@ -102,10 +102,10 @@ export class ChordPicker {
 
       <div class="pk-prog">
         <div class="pk-prog-head">
-          <h3>我的和弦進行</h3>
+          <h3>My Chord Progression</h3>
           <div class="row gap">
-            <button class="btn btn-sm pk-export">匯出文字</button>
-            <button class="btn btn-sm pk-clear">清空</button>
+            <button class="btn btn-sm pk-export">Export Text</button>
+            <button class="btn btn-sm pk-clear">Clear</button>
           </div>
         </div>
         <div class="pk-prog-list"></div>
@@ -150,7 +150,7 @@ export class ChordPicker {
       this.progression = [];
       this._save();
       this._renderProgression();
-      this.onToast?.('已清空');
+      this.onToast?.('Cleared.');
     });
     this.el.querySelector('.pk-export').addEventListener('click', () => this.exportText());
   }
@@ -178,7 +178,7 @@ export class ChordPicker {
   _renderPositions() {
     this.posEl.innerHTML = '';
     if (!this.positions.length) {
-      this.posEl.innerHTML = '<p class="muted small">這個和弦找不到六弦按得出來的指型。</p>';
+      this.posEl.innerHTML = '<p class="muted small">No playable six-string voicings found for this chord.</p>';
       return;
     }
 
@@ -188,9 +188,9 @@ export class ChordPicker {
       card.innerHTML = `
         ${diagramSvg({ name: this.chordName, frets: v.frets }, { width: 88, frets: 5 })}
         <span class="pk-pos-label">${v.label}</span>
-        <span class="pk-pos-meta">${v.fingers ? `${v.fingers} 指` : '不用按'} ・ ${
+        <span class="pk-pos-meta">${v.fingers ? `${v.fingers} fingers` : 'Open'} · ${
           v.frets.filter((f) => f !== null).length
-        } 弦</span>`;
+        } strings</span>`;
       card.addEventListener('click', () => {
         this.selected = i;
         this._renderPositions();
@@ -203,7 +203,7 @@ export class ChordPicker {
   _renderProgression() {
     this.progEl.innerHTML = '';
     if (!this.progression.length) {
-      this.progEl.innerHTML = '<p class="muted small">按上面的「＋ 加入進行」把和弦排進來。</p>';
+      this.progEl.innerHTML = '<p class="muted small">Select “＋ Add to Progression” above to add chords here.</p>';
       return;
     }
 
@@ -211,10 +211,10 @@ export class ChordPicker {
       const card = document.createElement('div');
       card.className = 'pk-prog-item';
       card.innerHTML = `
-        <button class="pk-prog-pick" title="亮到琴上">
+        <button class="pk-prog-pick" title="Light on guitar">
           ${diagramSvg({ name: c.name, frets: c.frets }, { width: 72, frets: 5 })}
         </button>
-        <button class="pk-prog-del" title="移除">✕</button>
+        <button class="pk-prog-del" title="Remove">✕</button>
         <span class="pk-prog-num">${i + 1}</span>`;
 
       card.querySelector('.pk-prog-pick').addEventListener('click', () => {
@@ -241,13 +241,13 @@ export class ChordPicker {
     this.progression.push({ name: this.chordName, frets: v.frets });
     this._save();
     this._renderProgression();
-    this.onToast?.(`已加入 ${this.chordName}`);
+    this.onToast?.(`Added ${this.chordName}.`);
   }
 
   exportText() {
-    if (!this.progression.length) return this.onToast?.('進行還是空的');
+    if (!this.progression.length) return this.onToast?.('The progression is empty.');
 
-    const lines = ['我的和弦進行', ''];
+    const lines = ['My Chord Progression', ''];
     lines.push(this.progression.map((c) => c.name).join(' → '));
     lines.push('');
     for (const c of this.progression) {
@@ -256,21 +256,21 @@ export class ChordPicker {
         .reverse() // 文字譜習慣由第6弦寫到第1弦
         .map((f) => (f === null ? 'x' : String(f)))
         .join('-');
-      lines.push(`${c.name.padEnd(7)} ${tab}   （左邊是第6弦）`);
+      lines.push(`${c.name.padEnd(7)} ${tab}   (leftmost number is the 6th string)`);
     }
     lines.push('');
-    lines.push('（由 LiteJam 燈譜產生）');
+    lines.push('(Generated by LiteJam GlowTab)');
 
     const text = lines.join('\n');
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = '我的和弦進行.txt';
+    a.download = 'my-chord-progression.txt';
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(a.href);
-    this.onToast?.('已匯出文字檔');
+    this.onToast?.('Text file exported.');
   }
 }
 

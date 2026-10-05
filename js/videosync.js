@@ -20,10 +20,10 @@ function loadApi() {
     const script = document.createElement('script');
     script.src = 'https://www.youtube.com/iframe_api';
     script.async = true;
-    script.onerror = () => reject(new Error('載入 YouTube 播放器失敗（要連得上網路）'));
+    script.onerror = () => reject(new Error('Failed to load the YouTube player. Check your internet connection.'));
     document.head.appendChild(script);
 
-    setTimeout(() => reject(new Error('YouTube 播放器載入逾時')), 15000);
+    setTimeout(() => reject(new Error('Timed out while loading the YouTube player.')), 15000);
   });
   return apiReady;
 }
@@ -46,7 +46,7 @@ export class VideoPlayer {
   }
 
   async load(videoId) {
-    if (!videoId) throw new Error('這首歌不是從 YouTube 抓的，沒有影片可以跟');
+    if (!videoId) throw new Error('This track was not sourced from YouTube, so there is no video to sync.');
 
     const YT = await loadApi();
 

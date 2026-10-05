@@ -45,7 +45,7 @@ export function melodyToTex(melody) {
 
   const head = [
     `\\title "${escapeTex(melody.title || 'Solo')}"`,
-    `\\subtitle "LiteJam 燈譜 自動抓的單音（僅供參考）"`,
+    `\\subtitle "LiteJam GlowTab · Automatically extracted melody (for reference only)"`,
     `\\tempo ${Math.max(30, Math.round(melody.bpm || 100))}`,
     '\\instrument 25', // Acoustic Guitar (steel)
     `\\ts ${bpb} 4`,
@@ -103,9 +103,9 @@ export function melodyToTex(melody) {
 /** 給人看的統計，顯示在 toast 上 */
 export function melodySummary(melody) {
   const notes = melody.notes ?? [];
-  if (!notes.length) return '沒抓到明顯的單音旋律';
+  if (!notes.length) return 'No clear single-note melody found.';
   const frets = notes.map((n) => n.fret);
   const lo = Math.min(...frets);
   const hi = Math.max(...frets);
-  return `抓到 ${notes.length} 個音，落在第 ${lo}–${hi} 格`;
+  return `Extracted ${notes.length} notes, spanning frets ${lo}–${hi}`;
 }

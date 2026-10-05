@@ -80,10 +80,10 @@ def decode(path, sr=SR):
     ]
     proc = subprocess.run(cmd, capture_output=True)
     if proc.returncode != 0:
-        raise RuntimeError(f'ffmpeg 解碼失敗：{proc.stderr.decode("utf-8", "replace")[:400]}')
+        raise RuntimeError(f'ffmpeg decoding failed: {proc.stderr.decode("utf-8", "replace")[:400]}')
     x = np.frombuffer(proc.stdout, dtype=np.float32).astype(np.float64)
     if x.size < sr:
-        raise RuntimeError('音檔太短或沒有聲音')
+        raise RuntimeError('The audio file is too short or contains no sound.')
     peak = np.abs(x).max()
     if peak > 0:
         x = x / peak
@@ -114,7 +114,7 @@ def note_spectrogram(x, sr=SR, n_fft=N_FFT, hop=HOP):
     win = np.hanning(n_fft)
     n_frames = 1 + max(0, (x.size - n_fft) // hop)
     if n_frames < 8:
-        raise RuntimeError('音檔太短，分析不出東西')
+        raise RuntimeError('The audio file is too short to analyze.')
 
     out = np.zeros((N_NOTES, n_frames))
     block = 256  # 一次處理幾框，控制記憶體
@@ -570,32 +570,32 @@ def analyze(path, beats_per_bar=4, simplify=False, progress=None, inversions=Tru
         if progress:
             progress(pct, msg)
 
-    step(5, '解碼音檔')
+    step(5, 'Decoding audio')
     x = decode(path)
     duration = x.size / SR
 
-    step(20, '分析頻譜')
+    step(20, 'Analyzing spectrum')
     P = note_spectrogram(x)
     Pw = whiten(P)
     Ph = harmonic_sum(Pw)
 
-    step(45, '偵測節奏')
+    step(45, 'Detecting rhythm')
     env = onset_envelope(P)
     period, bpm = estimate_period(env)
     beats = track_beats(env, period)
     beat_times = beats / FPS
 
-    step(65, '抽取和弦')
+    step(65, 'Detecting chords')
     chroma = chroma_from_notes(Ph)
     bass = chroma_from_notes(Pw, BASS_LO, BASS_HI)
     bc, bb = beat_chroma(chroma, bass, beats)
     if bc.shape[1] < 2:
-        raise RuntimeError('抓不到足夠的拍點，這段音檔可能太短或沒有節奏')
+        raise RuntimeError('Not enough beats detected. The audio may be too short or have no clear rhythm.')
 
     vecs, roots, quals, penalties, tri_sel, ext_sel, mem_sel = build_templates(simplify)
     scores = score_chords(bc, bb, vecs, roots, penalties, tri_sel, ext_sel, mem_sel)
 
-    step(85, '平滑化')
+    step(85, 'Smoothing results')
     path = viterbi(scores)
 
     root_names, use_flats, key_label, key_root, key_minor = detect_key(chroma)
@@ -630,7 +630,7 @@ def analyze(path, beats_per_bar=4, simplify=False, progress=None, inversions=Tru
     else:
         downbeat = int(downbeat) % beats_per_bar
 
-    step(95, '整理小節')
+    step(95, 'Organizing bars')
     bars = []
     i = downbeat
     bar_index = 0
@@ -659,7 +659,7 @@ def analyze(path, beats_per_bar=4, simplify=False, progress=None, inversions=Tru
     for b, label in zip(bars, labels):
         b['section'] = label
 
-    step(100, '完成')
+    step(100, 'Complete')
     return {
         'sections': sections,
         'duration': round(duration, 3),
@@ -902,29 +902,29 @@ def analyze_melody(path, beats_per_bar=4, subdivision=4, progress=None):
         if progress:
             progress(pct, msg)
 
-    step(5, '解碼音檔')
+    step(5, 'Decoding audio')
     x = decode(path)
 
-    step(25, '分析頻譜')
+    step(25, 'Analyzing spectrum')
     P = note_spectrogram(x)
     Pw = whiten(P)
     Ph = harmonic_sum(Pw)
 
-    step(50, '偵測節奏')
+    step(50, 'Detecting rhythm')
     env = onset_envelope(P)
     period, bpm = estimate_period(env)
     beats = track_beats(env, period)
     beat_times = beats / FPS
 
-    step(70, '抓單音旋律')
+    step(70, 'Extracting melody')
     raw = track_melody(Ph)
     raw = split_repeats(raw, env)
 
-    step(90, '對齊拍點與指板')
+    step(90, 'Aligning beats and fretboard positions')
     notes = quantize_melody(raw, beat_times, subdivision)
     notes = assign_frets(notes)
 
-    step(100, '完成')
+    step(100, 'Complete')
     return {
         'duration': round(x.size / SR, 3),
         'bpm': round(bpm, 1),
@@ -937,7 +937,7 @@ def analyze_melody(path, beats_per_bar=4, subdivision=4, progress=None):
 
 def main():
     if len(sys.argv) < 2:
-        print('用法：analyze.py <音檔> [每小節拍數] [--simple]', file=sys.stderr)
+        print('Usage: analyze.py <audio-file> [beats-per-bar] [--simple]', file=sys.stderr)
         return 1
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     simplify = '--simple' in sys.argv

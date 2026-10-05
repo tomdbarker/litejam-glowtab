@@ -69,7 +69,7 @@ export class StemMixer {
     // 一軌一軌載，進度才有意義（每軌都是完整長度的 wav，不小）
     for (const track of this.tracks) {
       const res = await fetch(track.url);
-      if (!res.ok) throw new Error(`載入 ${track.label} 失敗（${res.status}）`);
+      if (!res.ok) throw new Error(`Failed to load ${track.label} (${res.status})`);
       track.buffer = await this.ctx.decodeAudioData(await res.arrayBuffer());
       track.gain = this.ctx.createGain();
       track.gain.connect(this.master);
@@ -150,7 +150,7 @@ export class StemMixer {
   }
 
   async play() {
-    if (!this.ready) throw new Error('分軌還沒載入完');
+    if (!this.ready) throw new Error('Stem tracks have not finished loading.');
     if (this.ctx.state === 'suspended') await this.ctx.resume();
     if (this._playing) return;
     if (this._offset >= this.duration - 0.05) this._offset = 0;
@@ -169,7 +169,7 @@ export class StemMixer {
    * 給「匯出我的混音」用。
    */
   async renderMix() {
-    if (!this.ready) throw new Error('分軌還沒載入完');
+    if (!this.ready) throw new Error('Stem tracks have not finished loading.');
     const sr = this.ctx.sampleRate;
     const length = Math.max(1, Math.ceil(this.duration * sr));
     const oac = new OfflineAudioContext(2, length, sr);

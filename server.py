@@ -50,7 +50,7 @@ def new_job():
         for k, v in list(_jobs.items()):
             if now - v.get('created', now) > JOB_TTL:
                 _jobs.pop(k, None)
-        _jobs[job_id] = {'state': 'pending', 'progress': 0, 'message': '排隊中', 'created': now}
+        _jobs[job_id] = {'state': 'pending', 'progress': 0, 'message': 'Queued', 'created': now}
     return job_id
 
 
@@ -101,7 +101,7 @@ def download_audio(url, job_id):
     ytdlp = find_ytdlp()
     if not ytdlp:
         raise RuntimeError(
-            '找不到 yt-dlp。請下載官方獨立執行檔放到專案的 bin/yt-dlp：\n'
+            'yt-dlp was not found. Download the official standalone executable to bin/yt-dlp:\n'
             'curl -L -o bin/yt-dlp https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_macos'
             ' && chmod +x bin/yt-dlp'
         )
@@ -109,10 +109,10 @@ def download_audio(url, job_id):
     key = hashlib.sha1(url.encode()).hexdigest()[:16]
     for existing in MEDIA.glob(f'{key}.*'):
         if existing.suffix != '.json':
-            set_job(job_id, progress=35, message='這首之前抓過了，直接用')
+            set_job(job_id, progress=35, message='Using previously downloaded audio')
             return existing, _read_title(key) or existing.stem
 
-    set_job(job_id, progress=8, message='下載音訊中')
+    set_job(job_id, progress=8, message='Downloading audio')
     cmd = ytdlp + [
         '--no-playlist',
         '--no-warnings',
@@ -138,14 +138,14 @@ def download_audio(url, job_id):
             m = re.search(r'(\d+(?:\.\d+)?)%', line)
             if m:
                 pct = float(m.group(1))
-                set_job(job_id, progress=8 + pct * 0.27, message=f'下載音訊中 {pct:.0f}%')
+                set_job(job_id, progress=8 + pct * 0.27, message=f'Downloading audio {pct:.0f}%')
     stderr = proc.stderr.read()
     proc.wait()
 
     if proc.returncode != 0:
         detail = (stderr or '\n'.join(out_lines[-3:])).strip()
-        detail = re.sub(r'^ERROR:\s*', '', detail.splitlines()[-1] if detail else '下載失敗')
-        raise RuntimeError(f'YouTube 下載失敗：{detail}')
+        detail = re.sub(r'^ERROR:\s*', '', detail.splitlines()[-1] if detail else 'Download failed')
+        raise RuntimeError(f'YouTube download failed: {detail}')
 
     title = key
     if info_line:
@@ -156,10 +156,10 @@ def download_audio(url, job_id):
 
     files = [p for p in MEDIA.glob(f'{key}.*') if p.suffix != '.json']
     if not files:
-        raise RuntimeError('下載完成但找不到檔案')
+        raise RuntimeError('Download completed, but the audio file could not be found.')
 
     (MEDIA / f'{key}.json').write_text(json.dumps({'title': title, 'url': url}, ensure_ascii=False))
-    set_job(job_id, progress=35, message='下載完成')
+    set_job(job_id, progress=35, message='Download complete')
     return files[0], title
 
 
@@ -167,7 +167,7 @@ def search_youtube(query, limit=8):
     """打歌名找歌。回傳候選清單讓使用者自己挑，不自動決定。"""
     ytdlp = find_ytdlp()
     if not ytdlp:
-        raise RuntimeError('找不到 yt-dlp，沒辦法搜尋')
+        raise RuntimeError('yt-dlp was not found; search is unavailable.')
 
     cmd = ytdlp + [
         '--no-warnings',
@@ -178,7 +178,7 @@ def search_youtube(query, limit=8):
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
     if proc.returncode != 0:
         detail = (proc.stderr or '').strip().splitlines()
-        raise RuntimeError('搜尋失敗：' + (detail[-1] if detail else '未知錯誤'))
+        raise RuntimeError('Search failed: ' + (detail[-1] if detail else 'Unknown error'))
 
     out = []
     for line in proc.stdout.splitlines():
@@ -194,7 +194,7 @@ def search_youtube(query, limit=8):
         thumbs = d.get('thumbnails') or []
         out.append({
             'id': d.get('id'),
-            'title': d.get('title') or '(無標題)',
+            'title': d.get('title') or '(Untitled)',
             'uploader': d.get('uploader') or d.get('channel') or '',
             'duration': d.get('duration'),
             'views': d.get('view_count'),
@@ -213,7 +213,7 @@ def to_pinyin(lines, style='tone'):
     try:
         from pypinyin import Style, pinyin
     except ImportError:
-        raise RuntimeError('沒有安裝 pypinyin。請在終端機執行：pip3 install --user pypinyin')
+        raise RuntimeError('pypinyin is not installed. Run: pip3 install --user pypinyin')
 
     style_map = {
         'tone': Style.TONE,       # mā
@@ -256,12 +256,12 @@ def run_analysis(job_id, path, title, beats_per_bar, simplify, base_progress=35,
     result['media'] = f'/media/{path.name}'
     # 有影片 ID 的話前端可以嵌 YouTube 播放器，讓譜跟著影片跑
     result['videoId'] = video_id
-    set_job(job_id, state='done', progress=100, message='完成', result=result)
+    set_job(job_id, state='done', progress=100, message='Complete', result=result)
 
 
 def job_upload(job_id, path, title, beats_per_bar, simplify):
     try:
-        set_job(job_id, state='running', progress=5, message='開始分析')
+        set_job(job_id, state='running', progress=5, message='Starting analysis')
         run_analysis(job_id, path, title, beats_per_bar, simplify, base_progress=5)
     except Exception as exc:
         traceback.print_exc()
@@ -270,12 +270,12 @@ def job_upload(job_id, path, title, beats_per_bar, simplify):
 
 # Demucs 的 6 軌模型，剛好對得上樂團編制
 STEM_LABELS = {
-    'vocals': '主唱',
-    'drums': '鼓',
-    'bass': '貝斯',
-    'guitar': '吉他',
-    'piano': 'KB / 鋼琴',
-    'other': '其他',
+    'vocals': 'Vocals',
+    'drums': 'Drums',
+    'bass': 'Bass',
+    'guitar': 'Guitar',
+    'piano': 'Keys',
+    'other': 'Other',
 }
 STEM_ORDER = ['vocals', 'guitar', 'piano', 'bass', 'drums', 'other']
 DEMUCS_MODEL = 'htdemucs_6s'
@@ -290,7 +290,7 @@ def separate_stems(path, job_id):
     out_dir = MEDIA / 'stems' / path.stem
     expected = {k: out_dir / DEMUCS_MODEL / path.stem / f'{k}.wav' for k in STEM_LABELS}
     if all(p.exists() for p in expected.values()):
-        set_job(job_id, progress=95, message='這首之前分過了，直接用')
+        set_job(job_id, progress=95, message='Using previously separated stems')
         return expected
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -310,37 +310,37 @@ def separate_stems(path, job_id):
         tail.append(line)
         m = re.search(r'(\d+)%', line)
         if m:
-            set_job(job_id, progress=5 + int(m.group(1)) * 0.9, message=f'分軌中 {m.group(1)}%')
+            set_job(job_id, progress=5 + int(m.group(1)) * 0.9, message=f'Splitting stems {m.group(1)}%')
     proc.wait()
 
     if proc.returncode != 0:
-        detail = '\n'.join(tail[-4:]) or '未知錯誤'
+        detail = '\n'.join(tail[-4:]) or 'Unknown error'
         low = detail.lower()
 
         # 寫檔後端缺了就直接講，別誤導成「GPU 失敗」——分軌其實已經算完，
         # 是 torchaudio 2.8 沒有可用的輸出後端（實際踩過這個坑）
         if 'backend' in low or 'soundfile' in low:
-            raise RuntimeError('分軌算完但寫不出檔案：請執行 pip3 install --user soundfile')
+            raise RuntimeError('Stem separation finished, but audio files could not be written. Run: pip3 install --user soundfile')
 
         # 真的是 GPU 的問題才退回 CPU 重跑（會慢很多）
         if 'mps' in low or 'metal' in low or 'out of memory' in low:
-            set_job(job_id, progress=10, message='GPU 跑不動，改用 CPU 重試（會慢很多，請耐心等）')
+            set_job(job_id, progress=10, message='GPU unavailable; retrying on CPU (this will take longer)')
             cmd[cmd.index('mps')] = 'cpu'
             proc = subprocess.run(cmd, capture_output=True, text=True)
             if proc.returncode != 0:
-                raise RuntimeError(f'分軌失敗（CPU 也失敗）：{detail[:250]}')
+                raise RuntimeError(f'Stem separation failed on CPU as well: {detail[:250]}')
         else:
-            raise RuntimeError(f'分軌失敗：{detail[:300]}')
+            raise RuntimeError(f'Stem separation failed: {detail[:300]}')
 
     missing = [k for k, p in expected.items() if not p.exists()]
     if missing:
-        raise RuntimeError(f'分軌完成但少了：{", ".join(missing)}')
+        raise RuntimeError(f'Stem separation completed but these tracks are missing: {", ".join(missing)}')
     return expected
 
 
 def job_stems(job_id, path):
     try:
-        set_job(job_id, state='running', progress=3, message='載入分軌模型（第一次要下載）')
+        set_job(job_id, state='running', progress=3, message='Loading stem-separation model (first run may download it)')
         files = separate_stems(path, job_id)
         stems = []
         for key in STEM_ORDER:
@@ -352,7 +352,7 @@ def job_stems(job_id, path):
                 'label': STEM_LABELS[key],
                 'url': '/' + f.relative_to(ROOT).as_posix(),
             })
-        set_job(job_id, state='done', progress=100, message='完成', result={'stems': stems})
+        set_job(job_id, state='done', progress=100, message='Complete', result={'stems': stems})
     except Exception as exc:
         traceback.print_exc()
         set_job(job_id, state='error', message=str(exc))
@@ -386,10 +386,10 @@ def vocals_only(path, job_id):
             tail.append(line)
             m = re.search(r'(\d+)%', line)
             if m:
-                set_job(job_id, progress=5 + int(m.group(1)) * 0.35, message=f'分離人聲 {m.group(1)}%')
+                set_job(job_id, progress=5 + int(m.group(1)) * 0.35, message=f'Isolating vocals {m.group(1)}%')
     proc.wait()
     if proc.returncode != 0 or not target.exists():
-        raise RuntimeError('分離人聲失敗：' + ('\n'.join(tail[-3:]) or '未知錯誤')[:300])
+        raise RuntimeError('Vocal isolation failed: ' + ('\n'.join(tail[-3:]) or 'Unknown error')[:300])
     return target
 
 
@@ -438,14 +438,14 @@ def transcribe_vocals(wav_path, job_id, model_name='small', language='zh'):
     try:
         import whisper
     except ImportError:
-        raise RuntimeError('沒有安裝 whisper。請執行：pip3 install --user openai-whisper')
+        raise RuntimeError('Whisper is not installed. Run: pip3 install --user openai-whisper')
 
-    set_job(job_id, progress=45, message=f'載入辨識模型 {model_name}（第一次要下載）')
+    set_job(job_id, progress=45, message=f'Loading transcription model {model_name} (first run may download it)')
     if model_name not in _whisper_cache:
         _whisper_cache[model_name] = whisper.load_model(model_name)
     model = _whisper_cache[model_name]
 
-    set_job(job_id, progress=60, message='辨識歌詞中（這段最久）')
+    set_job(job_id, progress=60, message='Transcribing lyrics (this may take a while)')
     result = model.transcribe(
         str(wav_path),
         language=language or None,
@@ -473,19 +473,19 @@ def transcribe_vocals(wav_path, job_id, model_name='small', language='zh'):
 
 def job_auto_lyrics(job_id, path, model_name, language):
     try:
-        set_job(job_id, state='running', progress=3, message='準備分離人聲')
+        set_job(job_id, state='running', progress=3, message='Preparing to isolate vocals')
         vocals = vocals_only(path, job_id)
 
-        set_job(job_id, progress=42, message='確認有沒有人聲')
+        set_job(job_id, progress=42, message='Checking for vocals')
         ratio = vocal_presence(vocals, path)
         if ratio < VOCAL_PRESENCE_MIN:
             raise RuntimeError(
-                f'這首聽起來沒有人聲（人聲能量只有 {ratio * 100:.1f}%），應該是純樂器演奏。'
-                '沒有硬跑辨識，因為那樣只會生出一堆亂編的句子。'
+                f'No vocals were detected (vocal energy is only {ratio * 100:.1f}%). This may be an instrumental track. '
+                'Transcription was stopped to avoid producing inaccurate lyrics.'
             )
 
         segments, lang = transcribe_vocals(vocals, job_id, model_name, language)
-        set_job(job_id, state='done', progress=100, message='完成',
+        set_job(job_id, state='done', progress=100, message='Complete',
                 result={'segments': segments, 'language': lang, 'vocals': '/' + vocals.relative_to(ROOT).as_posix()})
     except Exception as exc:
         traceback.print_exc()
@@ -498,7 +498,7 @@ def job_rechord(job_id, path, title, beats_per_bar, simplify, downbeat, video_id
     音檔已經在本機了，所以這步只有分析（約 0.4 秒／3 分鐘的歌），不用重新下載。
     """
     try:
-        set_job(job_id, state='running', progress=5, message='重新分析和弦')
+        set_job(job_id, state='running', progress=5, message='Reanalyzing chords')
 
         def progress(pct, msg):
             set_job(job_id, progress=5 + pct * 0.95, message=msg)
@@ -508,7 +508,7 @@ def job_rechord(job_id, path, title, beats_per_bar, simplify, downbeat, video_id
         result['title'] = title
         result['media'] = f'/media/{path.name}'
         result['videoId'] = video_id
-        set_job(job_id, state='done', progress=100, message='完成', result=result)
+        set_job(job_id, state='done', progress=100, message='Complete', result=result)
     except Exception as exc:
         traceback.print_exc()
         set_job(job_id, state='error', message=str(exc))
@@ -516,7 +516,7 @@ def job_rechord(job_id, path, title, beats_per_bar, simplify, downbeat, video_id
 
 def job_melody(job_id, path, title, beats_per_bar):
     try:
-        set_job(job_id, state='running', progress=3, message='開始抓單音')
+        set_job(job_id, state='running', progress=3, message='Starting melody extraction')
 
         def progress(pct, msg):
             set_job(job_id, progress=3 + pct * 0.97, message=msg)
@@ -524,7 +524,7 @@ def job_melody(job_id, path, title, beats_per_bar):
         result = chord_analyzer.analyze_melody(str(path), beats_per_bar, 4, progress)
         result['title'] = title
         result['media'] = f'/media/{path.name}'
-        set_job(job_id, state='done', progress=100, message='完成', result=result)
+        set_job(job_id, state='done', progress=100, message='Complete', result=result)
     except Exception as exc:
         traceback.print_exc()
         set_job(job_id, state='error', message=str(exc))
@@ -540,7 +540,7 @@ def extract_video_id(url):
 
 def job_youtube(job_id, url, beats_per_bar, simplify):
     try:
-        set_job(job_id, state='running', progress=3, message='連線 YouTube')
+        set_job(job_id, state='running', progress=3, message='Connecting to YouTube')
         path, title = download_audio(url, job_id)
         run_analysis(job_id, path, title, beats_per_bar, simplify,
                      video_id=extract_video_id(url))
@@ -656,7 +656,7 @@ class Handler(SimpleHTTPRequestHandler):
             job_id = parsed.path.rsplit('/', 1)[-1]
             job = get_job(job_id)
             if not job:
-                return self.fail('查不到這個工作', 404)
+                return self.fail('Job not found.', 404)
             job.pop('created', None)
             return self.send_json(job)
         if parsed.path == '/api/health':
@@ -669,12 +669,12 @@ class Handler(SimpleHTTPRequestHandler):
         """把某首歌分出來的 6 軌 wav 打包成 zip 下載。"""
         src = self.resolve_media(media)
         if src is None:
-            return self.fail('找不到這個音檔', 404)
+            return self.fail('Audio file not found.', 404)
         stem = src.stem
         stem_dir = MEDIA / 'stems' / stem / DEMUCS_MODEL / stem
         wavs = sorted(stem_dir.glob('*.wav')) if stem_dir.exists() else []
         if not wavs:
-            return self.fail('這首還沒分軌', 404)
+            return self.fail('Stems have not been separated for this track.', 404)
 
         import io
         import zipfile
@@ -713,12 +713,12 @@ class Handler(SimpleHTTPRequestHandler):
 
         if parsed.path == '/api/analyze':
             if length <= 0:
-                return self.fail('沒有收到檔案內容')
+                return self.fail('No file data received.')
             if length > MAX_UPLOAD:
                 # 不讀那幾百 MB，直接關連線（fail() 會處理），不然只是白等
                 return self.fail(
-                    f'檔案太大（{length / 1024 / 1024:.0f}MB，上限 '
-                    f'{MAX_UPLOAD // 1024 // 1024}MB）。可以先用 ffmpeg 轉成 mp3 再上傳。',
+                    f'File is too large ({length / 1024 / 1024:.0f} MB; limit is '
+                    f'{MAX_UPLOAD // 1024 // 1024} MB). Convert it to MP3 with ffmpeg before uploading.',
                     413,
                 )
 
@@ -745,7 +745,7 @@ class Handler(SimpleHTTPRequestHandler):
                 # 上傳中斷，連線狀態已經不可信，關掉重來
                 self.close_connection = True
                 path.unlink(missing_ok=True)
-                return self.send_json({'error': '上傳中斷，請再試一次'}, 400)
+                return self.send_json({'error': 'Upload interrupted. Please try again.'}, 400)
 
             job_id = new_job()
             threading.Thread(
@@ -759,11 +759,11 @@ class Handler(SimpleHTTPRequestHandler):
         # 前端拿到 media 後再打 /api/stems，就能跳過抓和弦直接分離音檔。
         if parsed.path == '/api/upload-audio':
             if length <= 0:
-                return self.fail('沒有收到檔案內容')
+                return self.fail('No file data received.')
             if length > MAX_UPLOAD:
                 return self.fail(
-                    f'檔案太大（{length / 1024 / 1024:.0f}MB，上限 '
-                    f'{MAX_UPLOAD // 1024 // 1024}MB）。可以先用 ffmpeg 轉成 mp3 再上傳。',
+                    f'File is too large ({length / 1024 / 1024:.0f} MB; limit is '
+                    f'{MAX_UPLOAD // 1024 // 1024} MB). Convert it to MP3 with ffmpeg before uploading.',
                     413,
                 )
 
@@ -789,7 +789,7 @@ class Handler(SimpleHTTPRequestHandler):
             if written < length:
                 self.close_connection = True
                 path.unlink(missing_ok=True)
-                return self.send_json({'error': '上傳中斷，請再試一次'}, 400)
+                return self.send_json({'error': 'Upload interrupted. Please try again.'}, 400)
 
             return self.send_json({'media': f'/media/{path.name}', 'title': Path(raw_name).stem})
 
@@ -798,10 +798,10 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 payload = json.loads(body.decode('utf-8'))
             except Exception:
-                return self.fail('請求內容不是合法 JSON')
+                return self.fail('Request body is not valid JSON.')
             q = (payload.get('q') or '').strip()
             if len(q) < 2:
-                return self.fail('搜尋字串太短')
+                return self.fail('Search query is too short.')
             try:
                 return self.send_json({'results': search_youtube(q, payload.get('limit', 8))})
             except Exception as exc:
@@ -813,12 +813,12 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 payload = json.loads(body.decode('utf-8'))
             except Exception:
-                return self.fail('請求內容不是合法 JSON')
+                return self.fail('Request body is not valid JSON.')
             lines = payload.get('lines')
             if not isinstance(lines, list):
-                return self.fail('lines 要是一個陣列')
+                return self.fail('lines must be an array.')
             if len(lines) > 2000:
-                return self.fail('行數太多')
+                return self.fail('Too many lines.')
             try:
                 return self.send_json({'pinyin': to_pinyin(lines, payload.get('style', 'tone'))})
             except Exception as exc:
@@ -829,11 +829,11 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 payload = json.loads(body.decode('utf-8'))
             except Exception:
-                return self.fail('請求內容不是合法 JSON')
+                return self.fail('Request body is not valid JSON.')
 
             path = self.resolve_media(payload.get('media'))
             if path is None:
-                return self.fail('找不到這個音檔，請先重新分析一次')
+                return self.fail('Audio file not found. Please analyze it again.')
 
             job_id = new_job()
             if parsed.path == '/api/rechord':
@@ -849,7 +849,7 @@ class Handler(SimpleHTTPRequestHandler):
             else:
                 model = payload.get('model') or 'small'
                 if model not in ('tiny', 'base', 'small', 'medium', 'large-v3'):
-                    return self.fail('不認識這個辨識模型')
+                    return self.fail('Unknown transcription model.')
                 target, args = job_auto_lyrics, (job_id, path, model, payload.get('language') or 'zh')
 
             threading.Thread(target=target, args=args, daemon=True).start()
@@ -860,10 +860,10 @@ class Handler(SimpleHTTPRequestHandler):
             try:
                 payload = json.loads(body.decode('utf-8'))
             except Exception:
-                return self.fail('請求內容不是合法 JSON')
+                return self.fail('Request body is not valid JSON.')
             url = (payload.get('url') or '').strip()
             if not YOUTUBE_RE.match(url):
-                return self.fail('這不像 YouTube 連結')
+                return self.fail('This does not look like a YouTube URL.')
 
             job_id = new_job()
             threading.Thread(
@@ -873,7 +873,7 @@ class Handler(SimpleHTTPRequestHandler):
             ).start()
             return self.send_json({'job': job_id})
 
-        return self.fail('不認識這個路徑', 404)
+        return self.fail('Unknown endpoint.', 404)
 
 
 def _has_ytdlp():
@@ -894,16 +894,16 @@ def main():
         except OSError:
             port += 1
     if server is None:
-        print('找不到可用的埠', file=sys.stderr)
+        print('No available port found.', file=sys.stderr)
         return 1
 
-    print(f'LiteJam 燈譜 → http://localhost:{port}/')
-    print(f'  yt-dlp：{"已安裝" if _has_ytdlp() else "未安裝（YouTube 功能不能用）"}')
-    print('  要關掉的話直接關這個視窗，或按 Ctrl+C')
+    print(f'LiteJam GlowTab → http://localhost:{port}/')
+    print(f'  yt-dlp: {"installed" if _has_ytdlp() else "not installed (YouTube features unavailable)"}')
+    print('  Close this window or press Ctrl+C to stop the server.')
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print('\n再見')
+        print('\nGoodbye.')
     return 0
 
 

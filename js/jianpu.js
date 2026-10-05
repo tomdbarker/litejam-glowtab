@@ -97,7 +97,7 @@ export function scoreToJianpu(score, { keyRoot = 0, trackIndex = 0, staffIndex =
 
 /** 產生簡譜的 HTML */
 export function jianpuHtml(data, { barsPerRow = 4 } = {}) {
-  if (!data.bars.length) return '<p class="muted small">這份譜沒有可以轉成簡譜的音符。</p>';
+  if (!data.bars.length) return '<p class="muted small">This score has no notes to convert to numbered notation.</p>';
 
   const cellHtml = (c) => {
     // 休止符：每一拍一個 0（不用延長線），長休止就是連續的 0
