@@ -1,4 +1,4 @@
-import { LiteJam, hexToRgb, scaleColor, packNotes } from './litejam-ble.js';
+import { LiteJam, hexToRgb, scaleColor, packNotes, MAX_FRET } from './litejam-ble.js';
 import { FretboardView } from './fretboard.js';
 import { ChordChart } from './chordchart.js';
 import { ChordPicker } from './chordpicker.js';
@@ -40,6 +40,10 @@ const el = {
   togglePaint: $('toggle-paint'),
   colorPaint: $('color-paint'),
   paintClear: $('btn-paint-clear'),
+  scaleRoot: $('scale-root'),
+  scaleIntervals: $('scale-intervals'),
+  scaleSend: $('btn-scale-send'),
+  scaleClear: $('btn-scale-clear'),
   toggleNext: $('toggle-next'),
   brightness: $('brightness'),
   brightnessOut: $('brightness-out'),
@@ -469,11 +473,69 @@ function onBeat(beat) {
   if (bends.length) animateBends(bends, groups, run);
 }
 
+let scaleActive = false;
+
+const OPEN_STRING_MIDI = [64, 59, 55, 50, 45, 40];
+
 function clearLeds() {
   ledRun++; // 中止還在跑的測試動畫
   bendRun++; // 中止推弦滑動動畫
+  if (scaleActive) {
+    scaleActive = false;
+    fretboard.setFrets(settings.frets);
+  }
   fretboard.clear();
   if (guitar.status === 'connected') guitar.ledOff();
+}
+
+function sendScale() {
+  const intervalsText = el.scaleIntervals.value.trim();
+  const intervalParts = intervalsText ? intervalsText.split(',').map((part) => part.trim()) : [];
+  const intervals = intervalParts.map(Number);
+  if (
+    intervals.length < 6 ||
+    intervals.length > 11 ||
+    intervals.some((interval, index) =>
+      !/^\d+$/.test(intervalParts[index]) || interval < 1 || interval > 11 || (index > 0 && interval <= intervals[index - 1])
+    )
+  ) {
+    toast('請輸入 6–11 個遞增的半音音程（1–11），加上根音共 7–12 音。', true);
+    return;
+  }
+
+  if (el.togglePaint.checked) {
+    el.togglePaint.checked = false;
+    setPaintMode(false);
+  } else {
+    clearLeds();
+  }
+
+  const root = Number(el.scaleRoot.value);
+  const scale = new Set([root, ...intervals.map((interval) => (root + interval) % 12)]);
+  const rootNotes = [];
+  const otherNotes = [];
+  for (let string = 1; string <= OPEN_STRING_MIDI.length; string++) {
+    for (let fret = 0; fret <= MAX_FRET; fret++) {
+      const pitchClass = (OPEN_STRING_MIDI[string - 1] + fret) % 12;
+      if (!scale.has(pitchClass)) continue;
+      const note = { string: hwString(string), fret };
+      (pitchClass === root ? rootNotes : otherNotes).push(note);
+    }
+  }
+
+  const brightness = settings.brightness / 100;
+  const groups = [
+    { leds: packNotes(rootNotes), color: scaleColor({ r: 255, g: 0, b: 0 }, brightness) },
+    { leds: packNotes(otherNotes), color: scaleColor({ r: 0, g: 0, b: 255 }, brightness) },
+  ];
+  scaleActive = true;
+  fretboard.setFrets(MAX_FRET);
+  fretboard.setGroups(groups);
+  if (guitar.status === 'connected') guitar.sendSegment(groups);
+}
+
+function clearScale() {
+  if (scaleActive) clearLeds();
 }
 
 /* ---------------- 手動點燈：自己點指板排出和弦 ---------------- */
@@ -505,6 +567,7 @@ function toggleManualCell(string, fret) {
 }
 
 function setPaintMode(on) {
+  if (on && scaleActive) clearLeds();
   fretboard.setInteractive(on, toggleManualCell);
   document.body.classList.toggle('paint-mode', on);
   if (on) {
@@ -2255,6 +2318,8 @@ on(el.paintClear, 'click', () => {
   manualLeds.clear();
   clearLeds();
 });
+on(el.scaleSend, 'click', sendScale);
+on(el.scaleClear, 'click', clearScale);
 on(el.toggleNext, 'change', () => {
   settings.showNext = el.toggleNext.checked;
   save();

@@ -313,6 +313,17 @@ select {
   font-size: 12px;
 }
 
+.scale-interval-row input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg-2);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 7px;
+  font-size: 12px;
+}
+
 input[type="range"] {
   accent-color: var(--accent);
 }

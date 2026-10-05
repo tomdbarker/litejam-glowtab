@@ -97,6 +97,34 @@
             <div class="row gap">
               <button id="btn-paint-clear" class="btn btn-sm">清空手動燈</button>
             </div>
+            <hr class="panel-sep" />
+            <h3>音階亮燈</h3>
+            <label class="row">
+              <span>根音</span>
+              <select id="scale-root">
+                <option value="0">C</option>
+                <option value="1">C#</option>
+                <option value="2">D</option>
+                <option value="3">D#</option>
+                <option value="4">E</option>
+                <option value="5">F</option>
+                <option value="6">F#</option>
+                <option value="7">G</option>
+                <option value="8">G#</option>
+                <option value="9">A</option>
+                <option value="10">A#</option>
+                <option value="11">B</option>
+              </select>
+            </label>
+            <label class="row scale-interval-row">
+              <span>半音音程</span>
+              <input id="scale-intervals" type="text" value="2, 4, 5, 7, 9, 11" aria-label="從根音起算的遞增半音音程" />
+            </label>
+            <p class="muted small">輸入根音以外的遞增半音數（1–11），逗號分隔；加上根音共 7–12 音。根音紅色，其餘藍色。</p>
+            <div class="row gap">
+              <button id="btn-scale-send" class="btn btn-sm btn-primary">顯示並送出音階</button>
+              <button id="btn-scale-clear" class="btn btn-sm">清除音階</button>
+            </div>
           </section>
 
           <section class="panel" id="panel-chord" hidden>
