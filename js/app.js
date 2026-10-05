@@ -41,6 +41,7 @@ const el = {
   colorPaint: $('color-paint'),
   paintClear: $('btn-paint-clear'),
   scaleRoot: $('scale-root'),
+  scalePreset: $('scale-preset'),
   scaleIntervals: $('scale-intervals'),
   scaleSend: $('btn-scale-send'),
   scaleClear: $('btn-scale-clear'),
@@ -476,6 +477,42 @@ function onBeat(beat) {
 let scaleActive = false;
 
 const OPEN_STRING_MIDI = [64, 59, 55, 50, 45, 40];
+let scalePresets = {};
+
+async function loadScalePresets() {
+  try {
+    const response = await fetch('./defaultScales.json');
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
+    const data = await response.json();
+    if (!data.Scales || typeof data.Scales !== 'object') {
+      throw new Error('Invalid scale preset data');
+    }
+
+    scalePresets = data.Scales;
+    for (const name of Object.keys(scalePresets)) {
+      el.scalePreset.add(new Option(name, name));
+    }
+  } catch (error) {
+    console.error('Failed to load scale presets:', error);
+    toast('Unable to load scale presets.', true);
+  }
+}
+
+on(el.scalePreset, 'change', () => {
+  const preset = scalePresets[el.scalePreset.value];
+  if (!preset) return;
+
+  const rootOption = [...el.scaleRoot.options].find(
+    (option) => option.textContent.trim() === preset['Root Note']
+  );
+  if (!rootOption || typeof preset.Intervals !== 'string') {
+    toast('This scale preset has an invalid root or interval list.', true);
+    return;
+  }
+
+  el.scaleRoot.value = rootOption.value;
+  el.scaleIntervals.value = preset.Intervals;
+});
 
 function clearLeds() {
   ledRun++; // 中止還在跑的測試動畫
@@ -2321,6 +2358,7 @@ on(el.paintClear, 'click', () => {
 });
 on(el.scaleSend, 'click', sendScale);
 on(el.scaleClear, 'click', clearScale);
+loadScalePresets();
 on(el.toggleNext, 'change', () => {
   settings.showNext = el.toggleNext.checked;
   save();

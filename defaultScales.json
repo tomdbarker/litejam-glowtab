@@ -1,0 +1,12 @@
+{
+  "Scales": {
+    "C Major": {
+      "Root Note": "C",
+      "Intervals": "2,4,5,7,9,11"
+    },
+    "C Minor": {
+      "Root Note": "C",
+      "Intervals": "2,3,5,7,8,10"
+    }
+  }
+}
