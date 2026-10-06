@@ -1,0 +1,21 @@
+{
+  "name": "litejam-glowtab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:transcriber": "node scripts/build-transcriber.mjs",
+    "test:transcription": "node --test tests/transcription.test.mjs"
+  },
+  "dependencies": {
+    "@spotify/basic-pitch": "1.0.1",
+    "@tensorflow/tfjs": "3.21.0",
+    "@tensorflow/tfjs-backend-wasm": "3.21.0",
+    "@tonejs/midi": "2.0.28"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.5"
+  },
+  "overrides": {
+    "@tensorflow/tfjs": "3.21.0"
+  }
+}

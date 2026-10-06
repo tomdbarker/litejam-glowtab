@@ -227,6 +227,20 @@
             <p class="muted small">
               Extract a lead tablature from the isolated <b>guitar stem</b>, which is cleaner than the full mix. Playback and fretboard lighting are synchronized.
             </p>
+            <div class="row gap">
+              <button id="btn-transcribe-stems" class="btn btn-sm">Transcribe Guitar, Bass &amp; Keys</button>
+            </div>
+            <label class="row">
+              <span>TAB Tempo</span>
+              <input id="transcription-bpm" type="number" min="30" max="300" step="1" value="120" aria-label="Tempo used to align tablature bars" />
+              <span class="muted small">BPM</span>
+            </label>
+            <p class="muted small">Runs in your browser. Exports MIDI for detected pitched stems and TAB MusicXML for standard 6-string guitar / 4-string bass. TAB timing uses the detected tempo or the BPM above. Drum MIDI is not included in this transcription pass.</p>
+            <p id="transcription-status" class="muted small" role="status" aria-live="polite"></p>
+            <div class="row gap">
+              <button id="btn-export-transcription-midi" class="btn btn-sm" disabled>Export Pitched MIDI</button>
+              <button id="btn-export-tab-musicxml" class="btn btn-sm" disabled>Export Guitar/Bass TAB MusicXML</button>
+            </div>
             <hr class="panel-sep" />
             <div class="row gap">
               <button id="btn-export-mix" class="btn btn-sm">⬇ Export My Mix</button>

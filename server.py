@@ -316,6 +316,11 @@ def python_bin():
     return sys.executable
 
 
+def demucs_device():
+    # Only macOS has mps; Linux hosts (Render) run on CPU.
+    return 'mps' if sys.platform == 'darwin' else 'cpu'
+
+
 def separate_stems(path, job_id):
     """用 Demucs 把歌拆成 6 軌。回傳 {軌名: 檔案路徑}。"""
     out_dir = MEDIA / 'stems' / path.stem
@@ -328,7 +333,7 @@ def separate_stems(path, job_id):
     cmd = [
         python_bin(), '-m', 'demucs',
         '-n', DEMUCS_MODEL,
-        '-d', 'mps',            # Apple Silicon 的 GPU，比 CPU 快很多
+        '-d', demucs_device(),
         '--out', str(out_dir),
         str(path),
     ]
@@ -356,7 +361,7 @@ def separate_stems(path, job_id):
         # 真的是 GPU 的問題才退回 CPU 重跑（會慢很多）
         if 'mps' in low or 'metal' in low or 'out of memory' in low:
             set_job(job_id, progress=10, message='GPU unavailable; retrying on CPU (this will take longer)')
-            cmd[cmd.index('mps')] = 'cpu'
+            cmd[cmd.index('-d') + 1] = 'cpu'
             proc = subprocess.run(cmd, capture_output=True, text=True)
             if proc.returncode != 0:
                 raise RuntimeError(f'Stem separation failed on CPU as well: {detail[:250]}')
@@ -405,7 +410,7 @@ def vocals_only(path, job_id):
         python_bin(), '-m', 'demucs',
         '-n', 'htdemucs',
         '--two-stems', 'vocals',
-        '-d', 'mps',
+        '-d', demucs_device(),
         '--out', str(out_dir),
         str(path),
     ]
@@ -790,7 +795,47 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json({'ok': True, 'api': API_VERSION, 'ytdlp': _has_ytdlp()})
         if parsed.path == '/api/stems-zip':
             return self.serve_stems_zip(parse_qs(parsed.query).get('media', [''])[0])
+        if self.headers.get('Range') and self.serve_range(parsed.path):
+            return None
         return super().do_GET()
+
+    def serve_range(self, url_path):
+        """Serve a single byte range of a static file; False means fall back to a normal response."""
+        path = Path(self.translate_path(url_path))
+        match = re.fullmatch(r'bytes=(\d*)-(\d*)', self.headers.get('Range', '').strip())
+        if not match or not path.is_file():
+            return False
+        size = path.stat().st_size
+        first, last = match.groups()
+        if first == '':
+            if last == '':
+                return False
+            start, end = max(0, size - int(last)), size - 1
+        else:
+            start = int(first)
+            end = min(int(last), size - 1) if last else size - 1
+        if start >= size or start > end:
+            self.send_response(416)
+            self.send_header('Content-Range', f'bytes */{size}')
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return True
+        self.send_response(206)
+        self.send_header('Content-Type', self.guess_type(str(path)))
+        self.send_header('Accept-Ranges', 'bytes')
+        self.send_header('Content-Range', f'bytes {start}-{end}/{size}')
+        self.send_header('Content-Length', str(end - start + 1))
+        self.end_headers()
+        with open(path, 'rb') as f:
+            f.seek(start)
+            remaining = end - start + 1
+            while remaining > 0:
+                chunk = f.read(min(65536, remaining))
+                if not chunk:
+                    break
+                self.wfile.write(chunk)
+                remaining -= len(chunk)
+        return True
 
     def serve_stems_zip(self, media):
         """把某首歌分出來的 6 軌 wav 打包成 zip 下載。"""
@@ -1040,6 +1085,7 @@ def main():
     mimetypes.add_type('audio/mp4', '.m4a')
     mimetypes.add_type('audio/webm', '.webm')
     mimetypes.add_type('application/json', '.alphatab')
+    mimetypes.add_type('application/wasm', '.wasm')
     # Additional MIME types can be added here as needed
 
     init_db()

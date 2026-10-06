@@ -3,6 +3,43 @@
 // 對外的介面刻意做成和 <audio> 一樣（play / pause / paused / currentTime / duration），
 // 這樣和弦譜那邊可以把它當成另一個「音源」，不用改同步邏輯。
 
+const CHUNK_BYTES = 4 * 1024 * 1024;
+
+// Tunnels/proxies (e.g. Codespaces) abort long single downloads, so fetch in small retried ranges.
+async function fetchInChunks(url, label) {
+  const parts = [];
+  let offset = 0;
+  let total = Infinity;
+  while (offset < total) {
+    let res;
+    let buf;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        res = await fetch(url, { headers: { Range: `bytes=${offset}-${offset + CHUNK_BYTES - 1}` } });
+        if (res.status >= 400 && res.status < 500) throw Object.assign(new Error(`HTTP ${res.status}`), { fatal: true });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        buf = await res.arrayBuffer();
+        break;
+      } catch (err) {
+        if (err.fatal || attempt >= 4) throw new Error(`Failed to load ${label}: ${err.message}`);
+        await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+      }
+    }
+    if (res.status === 200) return buf; // server ignored Range and sent the whole file
+    total = Number(res.headers.get('Content-Range')?.split('/')[1]);
+    if (!Number.isFinite(total)) throw new Error(`Failed to load ${label}: bad Content-Range`);
+    parts.push(new Uint8Array(buf));
+    offset += buf.byteLength;
+  }
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const p of parts) {
+    out.set(p, pos);
+    pos += p.byteLength;
+  }
+  return out.buffer;
+}
+
 export class StemMixer {
   constructor() {
     this.ctx = null;
@@ -68,9 +105,8 @@ export class StemMixer {
     let done = 0;
     // 一軌一軌載，進度才有意義（每軌都是完整長度的 wav，不小）
     for (const track of this.tracks) {
-      const res = await fetch(track.url);
-      if (!res.ok) throw new Error(`Failed to load ${track.label} (${res.status})`);
-      track.buffer = await this.ctx.decodeAudioData(await res.arrayBuffer());
+      const bytes = await fetchInChunks(track.url, track.label);
+      track.buffer = await this.ctx.decodeAudioData(bytes);
       track.gain = this.ctx.createGain();
       track.gain.connect(this.master);
       done++;

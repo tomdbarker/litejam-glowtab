@@ -55,6 +55,10 @@ Use `pip install -r requirements.txt` as the build command and `python server.py
 
 Register `https://your-public-domain/auth/google/callback` as an authorized redirect URI in Google Cloud Console. Serve the app through HTTPS and a trusted reverse proxy. Google accounts identify users; custom scales are private to the signed-in account. Built-in scales remain available to everyone.
 
+### Stem transcription exports
+
+The Stem Mixer can run Spotify Basic Pitch locally in the browser on the separated guitar, bass, and piano/keys stems. It exports MIDI for detected pitched stems and MusicXML tablature for guitar/bass. This transcription pass does not generate drum MIDI. Analysis runs in a Web Worker with the model and TensorFlow.js WASM files served from `vendor/audio-to-midi/`; to rebuild those vendored assets after changing dependencies, run `npm ci` then `npm run build:transcriber`. Existing Render deploys do not need Node at runtime because the built assets are checked in.
+
 ## 用法
 
 1. 按「開啟譜」或把 `.gp` / `.gp3` / `.gp4` / `.gp5` / `.gpx` / MusicXML / MIDI 檔案拖進畫面。

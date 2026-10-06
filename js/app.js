@@ -7,6 +7,12 @@ import { melodySummary, melodyToTex } from './solotab.js';
 import { jianpuHtml, scoreToJianpu } from './jianpu.js';
 import { VideoPlayer } from './videosync.js';
 import { StemMixer } from './mixer.js';
+import {
+  buildMidi,
+  buildTabMusicXml,
+  downloadFile,
+  TRANSCRIPTION_TUNINGS,
+} from '../vendor/audio-to-midi/transcription-export.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -123,6 +129,11 @@ const el = {
   mixerTracks: $('mixer-tracks'),
   mixerHint: $('mixer-hint'),
   stemSolo: $('btn-stem-solo'),
+  transcribeStems: $('btn-transcribe-stems'),
+  transcriptionBpm: $('transcription-bpm'),
+  transcriptionStatus: $('transcription-status'),
+  exportTranscriptionMidi: $('btn-export-transcription-midi'),
+  exportTabMusicXml: $('btn-export-tab-musicxml'),
   exportMix: $('btn-export-mix'),
   exportStems: $('btn-export-stems'),
   autoLyrics: $('btn-auto-lyrics'),
@@ -1238,6 +1249,10 @@ on(el.stemSolo, 'click', async () => {
   if (!guitar?.url) return toast('Split the stems first to extract a lead from the guitar track.');
 
   el.stemSolo.disabled = true;
+
+on(el.transcribeStems, 'click', transcribePitchedStems);
+on(el.exportTranscriptionMidi, 'click', exportTranscribedMidi);
+on(el.exportTabMusicXml, 'click', exportTranscribedTab);
   busy('Extracting lead from guitar stem…');
   try {
     const res = await fetch('/api/melody?bpb=4', {
@@ -1263,6 +1278,10 @@ on(el.stemSolo, 'click', async () => {
     el.stemSolo.disabled = false;
   }
 });
+
+on(el.transcribeStems, 'click', transcribePitchedStems);
+on(el.exportTranscriptionMidi, 'click', exportTranscribedMidi);
+on(el.exportTabMusicXml, 'click', exportTranscribedTab);
 
 on(el.backTab, 'click', exitChordMode);
 on(el.reanalyze, 'click', () => openChordModal());
@@ -1983,6 +2002,134 @@ function renderMixer() {
   }
 }
 
+let transcriptionWorker = null;
+let transcriptionRequestId = 0;
+const transcriptionRequests = new Map();
+let transcribedPitchedStems = [];
+
+function getTranscriptionWorker() {
+  if (transcriptionWorker) return transcriptionWorker;
+  const worker = new Worker('/vendor/audio-to-midi/transcription-worker.js');
+  worker.addEventListener('message', (event) => {
+    const message = event.data;
+    const request = transcriptionRequests.get(message.id);
+    if (!request) return;
+    if (message.type === 'progress') {
+      request.onProgress?.(message.progress);
+    } else {
+      transcriptionRequests.delete(message.id);
+      if (message.type === 'error') request.reject(new Error(message.error));
+      else request.resolve(message);
+    }
+  });
+  worker.addEventListener('error', (event) => {
+    for (const request of transcriptionRequests.values()) request.reject(new Error(event.message));
+    transcriptionRequests.clear();
+    worker.terminate();
+    transcriptionWorker = null;
+  });
+  transcriptionWorker = worker;
+  return worker;
+}
+
+function transcribeMonoInWorker(audio, onProgress) {
+  const worker = getTranscriptionWorker();
+  const id = ++transcriptionRequestId;
+  return new Promise((resolve, reject) => {
+    transcriptionRequests.set(id, { resolve, reject, onProgress });
+    worker.postMessage({ id, audio }, [audio.buffer]);
+  });
+}
+
+async function resampleStemToMono(buffer, sampleRate = 22050) {
+  const OfflineContext = window.OfflineAudioContext ?? window.webkitOfflineAudioContext;
+  if (!OfflineContext) throw new Error('Offline audio resampling is not supported in this browser.');
+  const frames = Math.max(1, Math.ceil(buffer.duration * sampleRate));
+  const context = new OfflineContext(1, frames, sampleRate);
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.connect(context.destination);
+  source.start();
+  const rendered = await context.startRendering();
+  return rendered.getChannelData(0).slice();
+}
+
+function transcriptionTempo() {
+  return Math.max(30, Math.min(300, Number(el.transcriptionBpm.value) || 120));
+}
+
+function transcriptionBeatsPerBar() {
+  return Number(chart?.data?.beatsPerBar ?? el.optBpb?.value ?? 4) || 4;
+}
+
+function transcriptionFilename(suffix) {
+  const title = (el.title?.textContent || 'audio').replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60);
+  return `${title}_transcription.${suffix}`;
+}
+
+async function transcribePitchedStems() {
+  const supported = new Set(['guitar', 'bass', 'piano']);
+  const tracks = mixer?.tracks.filter((track) => supported.has(track.id) && track.buffer);
+  if (!tracks?.length) return toast('No guitar, bass, or keys stems are loaded.', true);
+
+  el.transcribeStems.disabled = true;
+  el.exportTranscriptionMidi.disabled = true;
+  el.exportTabMusicXml.disabled = true;
+  transcribedPitchedStems = [];
+  try {
+    for (const [index, track] of tracks.entries()) {
+      el.transcriptionStatus.textContent = `Preparing ${track.label} (${index + 1}/${tracks.length})…`;
+      busy(`Preparing ${track.label} for transcription…`);
+      const mono = await resampleStemToMono(track.buffer);
+      const result = await transcribeMonoInWorker(mono, (progress) => {
+        const pct = Math.round(progress * 100);
+        el.transcriptionStatus.textContent = `Transcribing ${track.label}: ${pct}%`;
+        busy(`Transcribing ${track.label} ${pct}%`);
+      });
+      const tuning = track.id === 'guitar'
+        ? TRANSCRIPTION_TUNINGS.guitar
+        : track.id === 'bass'
+          ? TRANSCRIPTION_TUNINGS.bass
+          : undefined;
+      transcribedPitchedStems.push({
+        name: track.label,
+        kind: track.id === 'piano' ? 'pitched' : track.id,
+        notes: result.notes,
+        tuning,
+      });
+    }
+
+    const noteCount = transcribedPitchedStems.reduce((total, stem) => total + stem.notes.length, 0);
+    el.exportTranscriptionMidi.disabled = noteCount === 0;
+    el.exportTabMusicXml.disabled = !transcribedPitchedStems.some(
+      (stem) => (stem.kind === 'guitar' || stem.kind === 'bass') && stem.notes.length
+    );
+    el.transcriptionStatus.textContent = `Transcription complete: ${noteCount} pitched notes across ${tracks.length} stems. Drum MIDI is not included.`;
+    toast(`Transcribed ${noteCount} pitched notes.`);
+  } catch (error) {
+    el.transcriptionStatus.textContent = error?.message ?? String(error);
+    toast(`Stem transcription failed: ${error?.message ?? String(error)}`, true);
+  } finally {
+    busy(null);
+    el.transcribeStems.disabled = false;
+  }
+}
+
+function exportTranscribedMidi() {
+  if (!transcribedPitchedStems.length) return toast('Transcribe the pitched stems first.', true);
+  const bytes = buildMidi(transcribedPitchedStems, transcriptionTempo(), transcriptionBeatsPerBar());
+  downloadFile(bytes, transcriptionFilename('mid'), 'audio/midi');
+}
+
+function exportTranscribedTab() {
+  const parts = transcribedPitchedStems
+    .filter((stem) => (stem.kind === 'guitar' || stem.kind === 'bass') && stem.notes.length)
+    .map((stem) => ({ name: stem.name, tuning: stem.tuning, notes: stem.notes }));
+  if (!parts.length) return toast('No guitar or bass notes are available for tablature.', true);
+  const xml = buildTabMusicXml(parts, transcriptionTempo(), transcriptionBeatsPerBar());
+  downloadFile(xml, transcriptionFilename('musicxml'), 'application/vnd.recordare.musicxml+xml');
+}
+
 async function loadStems(media = chart?.data?.media) {
   if (!media) throw new Error('Analyze a song first.');
 
@@ -1998,6 +2145,11 @@ async function loadStems(media = chart?.data?.media) {
   const result = await pollJob(payload.job, (pct, msg) => busy(`${msg} ${Math.round(pct)}%`));
   if (!result.stems?.length) throw new Error('No stems were created.');
 
+  transcribedPitchedStems = [];
+  el.transcriptionStatus.textContent = '';
+  el.transcribeStems.disabled = false;
+  el.exportTranscriptionMidi.disabled = true;
+  el.exportTabMusicXml.disabled = true;
   mixer ??= new StemMixer();
   await mixer.load(result.stems, (done, total) => busy(`Loading tracks ${done}/${total}`));
   stemsMedia = media;
@@ -2057,6 +2209,7 @@ async function enterStemsMode(media, title) {
 
   el.title.textContent = title || 'Stem Mixer';
   el.artist.textContent = 'Independent track volume · mute (M) · solo (S)';
+  el.transcriptionBpm.value = String(chart?.data?.bpm ?? 120);
   el.timeCur.textContent = '00:00';
   el.timeTotal.textContent = fmtTime(mixer.duration * 1000);
   el.seek.value = '0';

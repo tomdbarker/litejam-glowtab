@@ -4,6 +4,7 @@ media/
 # 系統與本機開發設定
 .DS_Store
 .claude/
+node_modules/
 __pycache__/
 *.pyc
 *.sqlite3
