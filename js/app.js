@@ -517,7 +517,7 @@ async function loadScalePresets() {
       el.googleLogout.hidden = true;
     } else {
       el.scaleAccountStatus.textContent = 'Google sign-in is not configured on this server.';
-      el.googleLogin.hidden = true;
+      el.googleLogin.hidden = false;
       el.googleLogout.hidden = true;
     }
     el.scaleSave.disabled = !auth.authenticated;
