@@ -30,8 +30,12 @@ GOOGLE_CLIENT_ID=your-client-id
 GOOGLE_CLIENT_SECRET=your-client-secret
 BASE_URL=https://your-public-domain
 HOST=0.0.0.0
-LITEJAM_DB_PATH=/persistent/path/litejam-scales.sqlite3
+LITEJAM_DB_PATH=/var/data/litejam-scales.sqlite3
 ```
+
+For Render, first attach a Persistent Disk to the web service with mount path `/var/data`, then set `LITEJAM_DB_PATH` to `/var/data/litejam-scales.sqlite3`. Do not use the mount path as a placeholder: the parent directory must be the actual writable disk mount.
+
+Use `pip install -r requirements.txt` as the build command and `python server.py` as the start command. Do not use `gunicorn`: this project runs its own HTTP server and does not expose a WSGI application. Render provides `PORT`; `server.py` reads it automatically. Set `HOST=0.0.0.0` so Render can reach the service.
 
 Register `https://your-public-domain/auth/google/callback` as an authorized redirect URI in Google Cloud Console. Serve the app through HTTPS and a trusted reverse proxy. Google accounts identify users; custom scales are private to the signed-in account. Built-in scales remain available to everyone.
 
