@@ -17,11 +17,27 @@
 
 需要的東西：`ffmpeg`（`brew install ffmpeg`）、`numpy` 與 `pypinyin`
 （`pip3 install --user numpy pypinyin`，pypinyin 只有歌詞拼音會用到）。
-YouTube 功能用專案內附的 `bin/yt-dlp` 獨立執行檔，不動系統環境。
+macOS uses the bundled `bin/yt-dlp`; Linux installs `yt-dlp` from `requirements.txt`.
 
 ### Scale presets and Google sign-in
 
 Built-in scales and each signed-in user's custom scales are stored in a single SQLite database file. SQLite is included with Python; no database server is required. The database defaults to `~/.litejam-glowtab/scales.sqlite3` and should live on persistent storage when hosted.
+
+#### Create the Google OAuth client
+
+You need a normal Google Cloud project; there is no special project template and you do not need to enable a Google API for sign-in. The OAuth client type for this app is **Web application**.
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/), open the project picker, and select **New Project**. Give it a name such as `LiteJam GlowTab` and create it. A personal Google account is enough to create the project.
+2. Make sure the new project is selected, then open **APIs & Services → OAuth consent screen**. If prompted, choose **Get started** or **Configure consent screen**. In the newer Console layout this section may instead appear as **Google Auth Platform**.
+3. Under **Branding**, enter an app name (for example, `LiteJam GlowTab`), a support email, and your developer contact email. A logo is optional.
+4. Under **Audience**, choose **External** if people outside your Google Workspace organization may sign in. While the app is in **Testing**, add your own Google account under **Test users**. For an app restricted to a Workspace organization, choose **Internal** instead.
+5. Under **Data Access**, use the basic identity scopes `openid`, `email`, and `profile`. Do not add Drive, YouTube, or other API scopes; this app only uses Google to identify the signed-in user.
+6. Open **APIs & Services → Credentials**, choose **Create credentials → OAuth client ID**, and select **Web application**. In the newer Console layout, use **Google Auth Platform → Clients → Create client**. Name it `LiteJam Render` (or similar).
+7. In **Authorized JavaScript origins**, add the site origin, for example `https://your-service.onrender.com` (no path or trailing slash).
+8. In **Authorized redirect URIs**, add the exact callback URL `https://your-service.onrender.com/auth/google/callback`.
+9. Create the client. Copy its **Client ID** and **Client secret** into the Render environment variables below. Keep the secret private and do not commit it.
+
+Direct links also work after selecting your project: [OAuth consent screen](https://console.cloud.google.com/apis/credentials/consent) and [Credentials](https://console.cloud.google.com/apis/credentials). In Testing mode, only listed test users can sign in. To allow general public sign-in, switch the audience publishing status to production; Google may require a verified app domain for that step.
 
 To enable per-user scale saving on a public host, create a Google OAuth web client and configure these environment variables in the server's secret/configuration store (never commit credentials):
 
@@ -35,7 +51,7 @@ LITEJAM_DB_PATH=/var/data/litejam-scales.sqlite3
 
 For Render, first attach a Persistent Disk to the web service with mount path `/var/data`, then set `LITEJAM_DB_PATH` to `/var/data/litejam-scales.sqlite3`. Do not use the mount path as a placeholder: the parent directory must be the actual writable disk mount.
 
-Use `pip install -r requirements.txt` as the build command and `python server.py` as the start command. Do not use `gunicorn`: this project runs its own HTTP server and does not expose a WSGI application. Render provides `PORT`; `server.py` reads it automatically. Set `HOST=0.0.0.0` so Render can reach the service.
+Use `pip install -r requirements.txt` as the build command and `python server.py` as the start command. The root `apt.txt` installs `ffmpeg`, which audio analysis requires. Do not use `gunicorn`: this project runs its own HTTP server and does not expose a WSGI application. Render provides `PORT`; `server.py` reads it automatically. Set `HOST=0.0.0.0` so Render can reach the service.
 
 Register `https://your-public-domain/auth/google/callback` as an authorized redirect URI in Google Cloud Console. Serve the app through HTTPS and a trusted reverse proxy. Google accounts identify users; custom scales are private to the signed-in account. Built-in scales remain available to everyone.
 

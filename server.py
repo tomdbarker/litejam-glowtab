@@ -106,13 +106,13 @@ YOUTUBE_RE = re.compile(
 
 
 def find_ytdlp():
-    """找 yt-dlp。優先用專案內附的獨立執行檔。
+    """Find yt-dlp, preferring the bundled macOS executable on macOS.
 
-    系統的 python3 是 3.9，而新版 yt-dlp 需要 3.10+，所以用 pip 裝到的
-    是已被 YouTube 擋掉的舊版；專案內的 bin/yt-dlp 才是最新的。
+    The bundled executable is a macOS binary; Linux hosts should use the
+    installed command or the Python package instead.
     """
     local = ROOT / 'bin' / 'yt-dlp'
-    if local.exists() and os.access(local, os.X_OK):
+    if sys.platform == 'darwin' and local.exists() and os.access(local, os.X_OK):
         return [str(local)]
 
     from shutil import which
