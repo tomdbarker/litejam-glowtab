@@ -19,6 +19,22 @@
 （`pip3 install --user numpy pypinyin`，pypinyin 只有歌詞拼音會用到）。
 YouTube 功能用專案內附的 `bin/yt-dlp` 獨立執行檔，不動系統環境。
 
+### Scale presets and Google sign-in
+
+Built-in scales and each signed-in user's custom scales are stored in a single SQLite database file. SQLite is included with Python; no database server is required. The database defaults to `~/.litejam-glowtab/scales.sqlite3` and should live on persistent storage when hosted.
+
+To enable per-user scale saving on a public host, create a Google OAuth web client and configure these environment variables in the server's secret/configuration store (never commit credentials):
+
+```sh
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+BASE_URL=https://your-public-domain
+HOST=0.0.0.0
+LITEJAM_DB_PATH=/persistent/path/litejam-scales.sqlite3
+```
+
+Register `https://your-public-domain/auth/google/callback` as an authorized redirect URI in Google Cloud Console. Serve the app through HTTPS and a trusted reverse proxy. Google accounts identify users; custom scales are private to the signed-in account. Built-in scales remain available to everyone.
+
 ## 用法
 
 1. 按「開啟譜」或把 `.gp` / `.gp3` / `.gp4` / `.gp5` / `.gpx` / MusicXML / MIDI 檔案拖進畫面。

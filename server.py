@@ -10,6 +10,7 @@
 """
 
 import hashlib
+import hmac
 import json
 import mimetypes
 import os
@@ -20,27 +21,57 @@ import threading
 import time
 import traceback
 import uuid
+from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlsplit
+
+from scale_store import (
+    create_oauth_state,
+    create_session,
+    delete_session,
+    get_session_user,
+    google_identity,
+    init_db,
+    list_scales,
+    save_scale,
+    upsert_google_user,
+    consume_oauth_state,
+)
 
 ROOT = Path(__file__).resolve().parent
 MEDIA = ROOT / 'media'
 MEDIA.mkdir(exist_ok=True)
 
 sys.path.insert(0, str(ROOT / 'chords'))
-import analyze as chord_analyzer  # noqa: E402
+_chord_analyzer = None
 
 # 前端會拿這個和自己的常數比對。加了新的 API 就把它 +1，
 # 這樣「網頁是新的、伺服器還是舊的」會直接講出來，而不是丟一個看不懂的錯誤。
-API_VERSION = 7
+API_VERSION = 8
 
 PORT = int(os.environ.get('PORT', '8123'))
+HOST = os.environ.get('HOST', '127.0.0.1')
+CONFIGURED_BASE_URL = os.environ.get('BASE_URL')
+BASE_URL = (CONFIGURED_BASE_URL or f'http://localhost:{PORT}').rstrip('/')
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+SESSION_COOKIE = 'litejam_session'
+OAUTH_STATE_COOKIE = 'litejam_oauth_state'
+COOKIE_SECURE = urlsplit(BASE_URL).scheme == 'https'
 MAX_UPLOAD = 200 * 1024 * 1024  # 200MB
 JOB_TTL = 3600  # 一小時後清掉舊工作
 
 _jobs = {}
 _jobs_lock = threading.Lock()
+
+
+def chord_analyzer():
+    global _chord_analyzer
+    if _chord_analyzer is None:
+        import importlib
+        _chord_analyzer = importlib.import_module('analyze')
+    return _chord_analyzer
 
 
 def new_job():
@@ -251,7 +282,7 @@ def run_analysis(job_id, path, title, beats_per_bar, simplify, base_progress=35,
         span = 100 - base_progress
         set_job(job_id, progress=base_progress + pct / 100 * span, message=msg)
 
-    result = chord_analyzer.analyze(str(path), beats_per_bar, simplify, progress)
+    result = chord_analyzer().analyze(str(path), beats_per_bar, simplify, progress)
     result['title'] = title
     result['media'] = f'/media/{path.name}'
     # 有影片 ID 的話前端可以嵌 YouTube 播放器，讓譜跟著影片跑
@@ -503,7 +534,7 @@ def job_rechord(job_id, path, title, beats_per_bar, simplify, downbeat, video_id
         def progress(pct, msg):
             set_job(job_id, progress=5 + pct * 0.95, message=msg)
 
-        result = chord_analyzer.analyze(str(path), beats_per_bar, simplify, progress,
+        result = chord_analyzer().analyze(str(path), beats_per_bar, simplify, progress,
                                         downbeat=downbeat)
         result['title'] = title
         result['media'] = f'/media/{path.name}'
@@ -521,7 +552,7 @@ def job_melody(job_id, path, title, beats_per_bar):
         def progress(pct, msg):
             set_job(job_id, progress=3 + pct * 0.97, message=msg)
 
-        result = chord_analyzer.analyze_melody(str(path), beats_per_bar, 4, progress)
+        result = chord_analyzer().analyze_melody(str(path), beats_per_bar, 4, progress)
         result['title'] = title
         result['media'] = f'/media/{path.name}'
         set_job(job_id, state='done', progress=100, message='Complete', result=result)
@@ -615,14 +646,93 @@ class Handler(SimpleHTTPRequestHandler):
 
     # ------------------------------------------------------------ 回覆工具
 
-    def send_json(self, obj, status=200):
+    def send_json(self, obj, status=200, headers=()):
         body = json.dumps(obj, ensure_ascii=False).encode('utf-8')
         self.send_response(status)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store')
+        for name, value in headers:
+            self.send_header(name, value)
         self.end_headers()
         self.wfile.write(body)
+
+    def send_redirect(self, location, headers=()):
+        self.send_response(302)
+        self.send_header('Location', location)
+        self.send_header('Content-Length', '0')
+        self.send_header('Cache-Control', 'no-store')
+        for name, value in headers:
+            self.send_header(name, value)
+        self.end_headers()
+
+    def cookie(self, name):
+        parsed = SimpleCookie()
+        parsed.load(self.headers.get('Cookie', ''))
+        morsel = parsed.get(name)
+        return morsel.value if morsel else ''
+
+    def cookie_header(self, name, value, max_age):
+        secure = '; Secure' if COOKIE_SECURE else ''
+        return f'{name}={value}; Path=/; Max-Age={max_age}; HttpOnly; SameSite=Lax{secure}'
+
+    def current_user(self):
+        return get_session_user(self.cookie(SESSION_COOKIE))
+
+    def same_origin_request(self):
+        origin = self.headers.get('Origin')
+        if not origin:
+            return False
+        actual = urlsplit(origin)
+        expected = urlsplit(BASE_URL)
+        return actual.scheme == expected.scheme and actual.netloc == expected.netloc
+
+    def google_login(self):
+        if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+            return self.send_redirect('/?auth_error=not_configured')
+        state, nonce = create_oauth_state()
+        callback = f'{BASE_URL}/auth/google/callback'
+        query = urlencode({
+            'client_id': GOOGLE_CLIENT_ID,
+            'redirect_uri': callback,
+            'response_type': 'code',
+            'scope': 'openid email profile',
+            'state': state,
+            'nonce': nonce,
+        })
+        cookie = self.cookie_header(OAUTH_STATE_COOKIE, state, 600)
+        return self.send_redirect(
+            'https://accounts.google.com/o/oauth2/v2/auth?' + query,
+            [('Set-Cookie', cookie)],
+        )
+
+    def google_callback(self, query):
+        if query.get('error'):
+            return self.send_redirect('/?auth_error=cancelled')
+        state = query.get('state', [''])[0]
+        cookie_state = self.cookie(OAUTH_STATE_COOKIE)
+        if not state or not cookie_state or not hmac.compare_digest(state, cookie_state):
+            return self.send_redirect('/?auth_error=state')
+        nonce = consume_oauth_state(state)
+        if not nonce:
+            return self.send_redirect('/?auth_error=state')
+        code = query.get('code', [''])[0]
+        callback = f'{BASE_URL}/auth/google/callback'
+        try:
+            identity = google_identity(
+                code, callback, nonce, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+            )
+            user_id = upsert_google_user(identity)
+            session = create_session(user_id)
+        except Exception:
+            traceback.print_exc()
+            return self.send_redirect('/?auth_error=signin_failed')
+
+        headers = [
+            ('Set-Cookie', self.cookie_header(SESSION_COOKIE, session, 30 * 24 * 60 * 60)),
+            ('Set-Cookie', self.cookie_header(OAUTH_STATE_COOKIE, '', 0)),
+        ]
+        return self.send_redirect('/', headers)
 
     def fail(self, message, status=400):
         self.discard_body()
@@ -652,6 +762,23 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/auth/google':
+            return self.google_login()
+        if parsed.path == '/auth/google/callback':
+            return self.google_callback(parse_qs(parsed.query))
+        if parsed.path == '/api/auth':
+            user = self.current_user()
+            return self.send_json({
+                'authenticated': bool(user),
+                'user': {'email': user['email'], 'name': user['name']} if user else None,
+                'googleConfigured': bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET),
+            })
+        if parsed.path == '/api/scales':
+            user = self.current_user()
+            return self.send_json({
+                'scales': list_scales(user['id'] if user else None),
+                'authenticated': bool(user),
+            })
         if parsed.path.startswith('/api/job/'):
             job_id = parsed.path.rsplit('/', 1)[-1]
             job = get_job(job_id)
@@ -710,6 +837,35 @@ class Handler(SimpleHTTPRequestHandler):
         simplify = query.get('simple', ['0'])[0] in ('1', 'true', 'yes')
 
         length = self.content_length()
+
+        if parsed.path in ('/api/scales', '/auth/logout'):
+            if not self.same_origin_request():
+                return self.fail('Request origin could not be verified.', 403)
+
+            if parsed.path == '/auth/logout':
+                self.discard_body()
+                delete_session(self.cookie(SESSION_COOKIE))
+                return self.send_json(
+                    {'ok': True},
+                    headers=[('Set-Cookie', self.cookie_header(SESSION_COOKIE, '', 0))],
+                )
+
+            user = self.current_user()
+            if not user:
+                return self.fail('Sign in with Google to save personal scales.', 401)
+            if length <= 0 or length > 16 * 1024:
+                return self.fail('Scale data is missing or too large.')
+            try:
+                payload = json.loads(self.read_body(length).decode('utf-8'))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                return self.fail('Request body is not valid JSON.')
+            try:
+                scale = save_scale(
+                    user['id'], payload.get('name'), payload.get('rootNote'), payload.get('intervals')
+                )
+            except (AttributeError, ValueError) as exc:
+                return self.fail(str(exc))
+            return self.send_json({'scale': scale}, 201)
 
         if parsed.path == '/api/analyze':
             if length <= 0:
@@ -884,12 +1040,15 @@ def main():
     mimetypes.add_type('audio/mp4', '.m4a')
     mimetypes.add_type('audio/webm', '.webm')
     mimetypes.add_type('application/json', '.alphatab')
+    # Additional MIME types can be added here as needed
+
+    init_db()
 
     port = PORT
     server = None
     for attempt in range(20):
         try:
-            server = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+            server = ThreadingHTTPServer((HOST, port), Handler)
             break
         except OSError:
             port += 1
@@ -897,7 +1056,10 @@ def main():
         print('No available port found.', file=sys.stderr)
         return 1
 
-    print(f'LiteJam GlowTab → http://localhost:{port}/')
+    if not CONFIGURED_BASE_URL:
+        global BASE_URL
+        BASE_URL = f'http://localhost:{port}'
+    print(f'LiteJam GlowTab → {BASE_URL}/')
     print(f'  yt-dlp: {"installed" if _has_ytdlp() else "not installed (YouTube features unavailable)"}')
     print('  Close this window or press Ctrl+C to stop the server.')
     try:

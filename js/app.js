@@ -43,6 +43,11 @@ const el = {
   scaleRoot: $('scale-root'),
   scalePreset: $('scale-preset'),
   scaleIntervals: $('scale-intervals'),
+  scaleName: $('scale-name'),
+  scaleSave: $('btn-scale-save'),
+  scaleAccountStatus: $('scale-account-status'),
+  googleLogin: $('btn-google-login'),
+  googleLogout: $('btn-google-logout'),
   scaleSend: $('btn-scale-send'),
   scaleClear: $('btn-scale-clear'),
   toggleNext: $('toggle-next'),
@@ -478,24 +483,104 @@ let scaleActive = false;
 
 const OPEN_STRING_MIDI = [64, 59, 55, 50, 45, 40];
 let scalePresets = {};
+let scaleAuth = null;
 
 async function loadScalePresets() {
   try {
-    const response = await fetch('./defaultScales.json');
-    if (!response.ok) throw new Error(`Server returned ${response.status}`);
-    const data = await response.json();
-    if (!data.Scales || typeof data.Scales !== 'object') {
-      throw new Error('Invalid scale preset data');
+    const [authResponse, scalesResponse] = await Promise.all([
+      fetch('/api/auth'),
+      fetch('/api/scales'),
+    ]);
+    if (!authResponse.ok || !scalesResponse.ok) {
+      throw new Error(`Server returned ${authResponse.status}/${scalesResponse.status}`);
     }
+    const [auth, data] = await Promise.all([authResponse.json(), scalesResponse.json()]);
+    if (!Array.isArray(data.scales)) throw new Error('Invalid scale data');
 
-    scalePresets = data.Scales;
-    for (const name of Object.keys(scalePresets)) {
-      el.scalePreset.add(new Option(name, name));
+    scaleAuth = auth;
+    scalePresets = Object.fromEntries(data.scales.map((scale) => [scale.name, scale]));
+    const selected = el.scalePreset.value;
+    el.scalePreset.replaceChildren(new Option('Choose a scale…', ''));
+    for (const scale of data.scales) {
+      const label = scale.isDefault ? scale.name : `${scale.name} (Saved)`;
+      el.scalePreset.add(new Option(label, scale.name));
     }
+    if (scalePresets[selected]) el.scalePreset.value = selected;
+
+    if (auth.authenticated) {
+      el.scaleAccountStatus.textContent = `Signed in as ${auth.user.email}`;
+      el.googleLogin.hidden = true;
+      el.googleLogout.hidden = false;
+    } else if (auth.googleConfigured) {
+      el.scaleAccountStatus.textContent = 'Sign in to save scales to your account.';
+      el.googleLogin.hidden = false;
+      el.googleLogout.hidden = true;
+    } else {
+      el.scaleAccountStatus.textContent = 'Google sign-in is not configured on this server.';
+      el.googleLogin.hidden = true;
+      el.googleLogout.hidden = true;
+    }
+    el.scaleSave.disabled = !auth.authenticated;
   } catch (error) {
     console.error('Failed to load scale presets:', error);
     toast('Unable to load scale presets.', true);
   }
+}
+
+async function saveCustomScale() {
+  if (!scaleAuth?.authenticated) {
+    toast('Sign in with Google to save a personal scale.', true);
+    return;
+  }
+  const payload = {
+    name: el.scaleName.value,
+    rootNote: el.scaleRoot.selectedOptions[0]?.textContent.trim(),
+    intervals: el.scaleIntervals.value,
+  };
+  el.scaleSave.disabled = true;
+  try {
+    const response = await fetch('/api/scales', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `Server returned ${response.status}`);
+    await loadScalePresets();
+    el.scalePreset.value = result.scale.name;
+    toast(`Saved scale: ${result.scale.name}`);
+  } catch (error) {
+    toast(error?.message ?? String(error), true);
+  } finally {
+    el.scaleSave.disabled = !scaleAuth?.authenticated;
+  }
+}
+
+on(el.googleLogout, 'click', async () => {
+  try {
+    const response = await fetch('/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
+    await loadScalePresets();
+    toast('Signed out.');
+  } catch (error) {
+    toast(error?.message ?? String(error), true);
+  }
+});
+
+const authError = new URLSearchParams(location.search).get('auth_error');
+if (authError) {
+  const messages = {
+    not_configured: 'Google sign-in is not configured on this server.',
+    cancelled: 'Google sign-in was cancelled.',
+    state: 'Sign-in expired or could not be verified. Please try again.',
+    signin_failed: 'Google sign-in failed. Please try again.',
+  };
+  toast(messages[authError] || 'Google sign-in failed.', true);
+  history.replaceState(null, '', location.pathname + location.hash);
 }
 
 on(el.scalePreset, 'change', () => {
@@ -1314,7 +1399,7 @@ function analysisQuery() {
 }
 
 /** 伺服器需要的 API 版本；對不上就直接講「請重啟伺服器」 */
-const NEED_API = 5;
+const NEED_API = 8;
 
 /**
  * 讀 JSON 回應，但不要讓「拿到 HTML」變成看不懂的錯誤。
@@ -2358,6 +2443,7 @@ on(el.paintClear, 'click', () => {
 });
 on(el.scaleSend, 'click', sendScale);
 on(el.scaleClear, 'click', clearScale);
+on(el.scaleSave, 'click', saveCustomScale);
 loadScalePresets();
 on(el.toggleNext, 'change', () => {
   settings.showNext = el.toggleNext.checked;

@@ -99,6 +99,11 @@
             </div>
             <hr class="panel-sep" />
             <h3>Scale Lighting</h3>
+            <div class="row gap">
+              <span id="scale-account-status" class="muted small">Sign in to save scales to your account.</span>
+              <a id="btn-google-login" class="btn btn-sm" href="/auth/google" hidden>Sign in with Google</a>
+              <button id="btn-google-logout" class="btn btn-sm" type="button" hidden>Sign out</button>
+            </div>
             <label class="row">
               <span>Root</span>
               <select id="scale-root">
@@ -126,6 +131,13 @@
               <span>Semitone Intervals</span>
               <input id="scale-intervals" type="text" value="2, 4, 5, 7, 9, 11" aria-label="Ascending semitone intervals from the root" />
             </label>
+            <label class="row scale-interval-row">
+              <span>Scale Name</span>
+              <input id="scale-name" type="text" maxlength="60" placeholder="e.g. D Harmonic Minor" />
+            </label>
+            <div class="row gap">
+              <button id="btn-scale-save" class="btn btn-sm">Save Custom Scale</button>
+            </div>
             <p class="muted small">Enter ascending semitone intervals above the root (1–11), separated by commas. Include 6–11 intervals for 7–12 notes total. The root is red; other notes are blue.</p>
             <div class="row gap">
               <button id="btn-scale-send" class="btn btn-sm btn-primary">Show and Send Scale</button>
