@@ -55,6 +55,14 @@ Use `pip install -r requirements.txt` as the build command and `python server.py
 
 Register `https://your-public-domain/auth/google/callback` as an authorized redirect URI in Google Cloud Console. Serve the app through HTTPS and a trusted reverse proxy. Google accounts identify users; custom scales are private to the signed-in account. Built-in scales remain available to everyone.
 
+### Custom tunings
+
+The **Guitar Tuning** panel lets you pick the open note (B1–B4, including sharps) of each of the six strings. Everything sent to the fretboard then uses that tuning until you change it or choose **Reset to Standard**: notes from a score or solo tab are re-placed by pitch, chord shapes are searched again for the new tuning, and scale lighting uses the new open notes. The active tuning is remembered in the browser.
+
+Built-in presets (Standard, Drop D, Half Step Down, DADGAD) are available to everyone. Signed-in users can save their own tunings, which are stored per account in the same SQLite database and appear in the preset dropdown. Notes a tuning cannot reach (below the lowest open string or past the last fret) are not lit. Manual lighting is unaffected, since it lights the frets you click.
+
+Standard tuning keeps the original behaviour: a score's own string and fret numbers are sent unchanged. In a custom tuning, the score's pitches are what matter, so a file written in another tuning still sounds correctly.
+
 ## 用法
 
 1. 按「開啟譜」或把 `.gp` / `.gp3` / `.gp4` / `.gp5` / `.gpx` / MusicXML / MIDI 檔案拖進畫面。

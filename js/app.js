@@ -2,7 +2,17 @@ import { LiteJam, hexToRgb, scaleColor, packNotes, MAX_FRET } from './litejam-bl
 import { FretboardView } from './fretboard.js';
 import { ChordChart } from './chordchart.js';
 import { ChordPicker } from './chordpicker.js';
-import { chordColorClass } from './chords.js';
+import { chordColorClass, setTuning as setChordTuning } from './chords.js';
+import {
+  STANDARD_TUNING,
+  TUNING_MAX_MIDI,
+  TUNING_MIN_MIDI,
+  describeTuning,
+  isValidTuning,
+  midiToName,
+  placeNotes,
+  sameTuning,
+} from './tuning.js';
 import { melodySummary, melodyToTex } from './solotab.js';
 import { jianpuHtml, scoreToJianpu } from './jianpu.js';
 import { VideoPlayer } from './videosync.js';
@@ -50,6 +60,12 @@ const el = {
   googleLogout: $('btn-google-logout'),
   scaleSend: $('btn-scale-send'),
   scaleClear: $('btn-scale-clear'),
+  tuningPreset: $('tuning-preset'),
+  tuningStrings: $('tuning-strings'),
+  tuningSummary: $('tuning-summary'),
+  tuningName: $('tuning-name'),
+  tuningSave: $('btn-tuning-save'),
+  tuningReset: $('btn-tuning-reset'),
   toggleNext: $('toggle-next'),
   brightness: $('brightness'),
   brightnessOut: $('brightness-out'),
@@ -214,9 +230,12 @@ function load() {
     chordDisplay: 'chord',
     capo: 0,
     showJianpu: false,
+    tuning: [...STANDARD_TUNING],
   };
   try {
-    return { ...defaults, ...JSON.parse(localStorage.getItem('litejam-glowtab') ?? '{}') };
+    const merged = { ...defaults, ...JSON.parse(localStorage.getItem('litejam-glowtab') ?? '{}') };
+    if (!isValidTuning(merged.tuning)) merged.tuning = defaults.tuning;
+    return merged;
   } catch {
     return defaults;
   }
@@ -380,15 +399,30 @@ function hwString(guitarString) {
   return settings.reverseStrings ? 7 - guitarString : guitarString;
 }
 
-function beatToNotes(beat) {
-  if (!beat?.notes) return [];
-  const out = [];
-  for (const note of beat.notes) {
-    if (note.isTieDestination) continue; // 延音線的後半段不重新亮
-    if (note.string == null || note.fret == null || note.fret < 0) continue;
-    out.push({ string: hwString(atStringToGuitar(note.string)), fret: note.fret });
+/**
+ * 這一拍的音符要亮在哪條弦、哪一格（吉他慣例：1 = 細弦）。
+ * 標準調弦直接用譜上的弦和格；自訂調弦則用音高重算，
+ * 不然譜上的格數在調過弦的吉他上會是錯的音。
+ */
+function beatPositions(beat) {
+  const notes = (beat?.notes ?? []).filter(
+    // 延音線的後半段不重新亮
+    (n) => !n.isTieDestination && n.string != null && n.fret != null && n.fret >= 0
+  );
+  if (sameTuning(settings.tuning, STANDARD_TUNING)) {
+    return notes.map((note) => ({ note, gstr: atStringToGuitar(note.string), fret: note.fret }));
   }
-  return out;
+  // 泛音要亮「按下去的那一格」，所以不用含泛音的音高
+  const requests = notes.map((n) => ({
+    pitch: n.realValueWithoutHarmonic ?? n.realValue,
+    preferred: atStringToGuitar(n.string),
+  }));
+  const spots = placeNotes(requests, settings.tuning, MAX_FRET);
+  return notes.flatMap((note, i) => (spots[i] ? [{ note, gstr: spots[i].string, fret: spots[i].fret }] : []));
+}
+
+function beatToNotes(beat) {
+  return beatPositions(beat).map(({ gstr, fret }) => ({ string: hwString(gstr), fret }));
 }
 
 function currentGroups(beat) {
@@ -433,12 +467,10 @@ function bendStringCount(note) {
  */
 function bendTargets(beat) {
   const out = [];
-  for (const note of beat?.notes ?? []) {
-    if (note.isTieDestination || !note.hasBend) continue;
-    if (note.string == null || note.fret == null || note.fret < 0) continue;
-    const gstr = atStringToGuitar(note.string); // 1..6（1 = 細弦）
+  for (const { note, gstr, fret } of beatPositions(beat)) {
+    if (!note.hasBend) continue;
     const dir = gstr <= 3 ? 1 : -1;
-    out.push({ gstr, fret: note.fret, dir, count: bendStringCount(note) });
+    out.push({ gstr, fret, dir, count: bendStringCount(note) });
   }
   return out;
 }
@@ -481,7 +513,6 @@ function onBeat(beat) {
 
 let scaleActive = false;
 
-const OPEN_STRING_MIDI = [64, 59, 55, 50, 45, 40];
 let scalePresets = {};
 let scaleAuth = null;
 
@@ -565,6 +596,7 @@ on(el.googleLogout, 'click', async () => {
     });
     if (!response.ok) throw new Error(`Server returned ${response.status}`);
     await loadScalePresets();
+    await loadTuningPresets();
     toast('Signed out.');
   } catch (error) {
     toast(error?.message ?? String(error), true);
@@ -636,9 +668,9 @@ function sendScale() {
   const scale = new Set([root, ...intervals.map((interval) => (root + interval) % 12)]);
   const rootNotes = [];
   const otherNotes = [];
-  for (let string = 1; string <= OPEN_STRING_MIDI.length; string++) {
+  for (let string = 1; string <= settings.tuning.length; string++) {
     for (let fret = 0; fret <= MAX_FRET; fret++) {
-      const pitchClass = (OPEN_STRING_MIDI[string - 1] + fret) % 12;
+      const pitchClass = (settings.tuning[string - 1] + fret) % 12;
       if (!scale.has(pitchClass)) continue;
       const note = { string: hwString(string), fret };
       (pitchClass === root ? rootNotes : otherNotes).push(note);
@@ -659,6 +691,122 @@ function sendScale() {
 function clearScale() {
   if (scaleActive) clearLeds();
 }
+
+/* ---------------- Guitar tuning ---------------- */
+
+let tuningPresets = [];
+let tuningAuthenticated = false;
+
+function buildTuningSelects() {
+  if (!el.tuningStrings) return;
+  el.tuningStrings.replaceChildren();
+  // Listed low string → high string, the way tunings are normally written
+  for (let string = 6; string >= 1; string--) {
+    const label = document.createElement('label');
+    label.className = 'tuning-string';
+    const caption = document.createElement('span');
+    caption.textContent = `String ${string}`;
+    const select = document.createElement('select');
+    select.dataset.string = String(string);
+    select.setAttribute('aria-label', `Open note for string ${string}`);
+    for (let midi = TUNING_MIN_MIDI; midi <= TUNING_MAX_MIDI; midi++) {
+      select.add(new Option(midiToName(midi), String(midi)));
+    }
+    on(select, 'change', () => applyTuning(readTuningSelects()));
+    label.append(caption, select);
+    el.tuningStrings.append(label);
+  }
+}
+
+function readTuningSelects() {
+  return [1, 2, 3, 4, 5, 6].map((string) =>
+    Number(el.tuningStrings.querySelector(`select[data-string="${string}"]`)?.value)
+  );
+}
+
+function syncTuningUi() {
+  for (const select of el.tuningStrings?.querySelectorAll('select') ?? []) {
+    select.value = String(settings.tuning[Number(select.dataset.string) - 1]);
+  }
+  if (el.tuningSummary) {
+    el.tuningSummary.textContent = `Active tuning (low to high): ${describeTuning(settings.tuning)}`;
+  }
+  // Keep the chosen preset selected unless the strings no longer match it
+  const selected = tuningPresets.find((p) => p.name === el.tuningPreset?.value);
+  if (el.tuningPreset && !(selected && sameTuning(selected.notes, settings.tuning))) {
+    const match = tuningPresets.find((p) => sameTuning(p.notes, settings.tuning));
+    el.tuningPreset.value = match ? match.name : '';
+  }
+}
+
+/** Make `next` the tuning for everything sent to the fretboard, and redraw whatever is lit. */
+function applyTuning(next) {
+  if (!isValidTuning(next)) return;
+  settings.tuning = [...next];
+  save();
+  setChordTuning(settings.tuning);
+  syncTuningUi();
+
+  chart?.refresh();
+  if (scaleActive) sendScale();
+  else if (mode === 'chord' && chart?.beatIndex >= 0) onChordBeat(chart.beatIndex);
+  else if (mode === 'picker') picker?.update();
+}
+
+async function loadTuningPresets() {
+  try {
+    const response = await fetch('/api/tunings');
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
+    const data = await response.json();
+    if (!Array.isArray(data.tunings)) throw new Error('Invalid tuning data');
+
+    tuningPresets = data.tunings.filter((t) => isValidTuning(t.notes));
+    tuningAuthenticated = !!data.authenticated;
+    el.tuningPreset.replaceChildren(new Option('Custom', ''));
+    for (const tuning of tuningPresets) {
+      el.tuningPreset.add(new Option(tuning.isDefault ? tuning.name : `${tuning.name} (Saved)`, tuning.name));
+    }
+    el.tuningSave.disabled = !tuningAuthenticated;
+    syncTuningUi();
+  } catch (error) {
+    console.error('Failed to load tunings:', error);
+    toast('Unable to load tuning presets.', true);
+  }
+}
+
+async function saveCustomTuning() {
+  if (!tuningAuthenticated) {
+    toast('Sign in with Google to save a personal tuning.', true);
+    return;
+  }
+  el.tuningSave.disabled = true;
+  try {
+    const response = await fetch('/api/tunings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: el.tuningName.value, notes: settings.tuning }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `Server returned ${response.status}`);
+    await loadTuningPresets();
+    el.tuningPreset.value = result.tuning.name;
+    toast(`Saved tuning: ${result.tuning.name}`);
+  } catch (error) {
+    toast(error?.message ?? String(error), true);
+  } finally {
+    el.tuningSave.disabled = !tuningAuthenticated;
+  }
+}
+
+on(el.tuningPreset, 'change', () => {
+  const preset = tuningPresets.find((p) => p.name === el.tuningPreset.value);
+  if (preset) applyTuning(preset.notes);
+});
+on(el.tuningSave, 'click', saveCustomTuning);
+on(el.tuningReset, 'click', () => {
+  applyTuning(STANDARD_TUNING);
+  toast('Tuning reset to standard.');
+});
 
 /* ---------------- 手動點燈：自己點指板排出和弦 ---------------- */
 
@@ -1399,7 +1547,7 @@ function analysisQuery() {
 }
 
 /** 伺服器需要的 API 版本；對不上就直接講「請重啟伺服器」 */
-const NEED_API = 8;
+const NEED_API = 9;
 
 /**
  * 讀 JSON 回應，但不要讓「拿到 HTML」變成看不懂的錯誤。
@@ -2445,6 +2593,10 @@ on(el.scaleSend, 'click', sendScale);
 on(el.scaleClear, 'click', clearScale);
 on(el.scaleSave, 'click', saveCustomScale);
 loadScalePresets();
+setChordTuning(settings.tuning);
+buildTuningSelects();
+syncTuningUi();
+loadTuningPresets();
 on(el.toggleNext, 'change', () => {
   settings.showNext = el.toggleNext.checked;
   save();

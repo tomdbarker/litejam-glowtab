@@ -249,6 +249,12 @@ export class ChordChart {
     this.setBeat(this.beatIndex, true);
   }
 
+  /** 調弦換了：和弦圖與目前這拍的指型都要重算 */
+  refresh() {
+    this.render();
+    this.setBeat(this.beatIndex, true);
+  }
+
   /** 移調夾夾第幾格（0–7）。改了之後顯示的和弦名會變成「你實際按的指型」。 */
   setCapo(fret) {
     this.capo = Math.max(0, Math.min(11, fret | 0));

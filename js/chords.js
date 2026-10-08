@@ -4,11 +4,14 @@
 // 在 4 格範圍內找出「涵蓋所有和弦音、不含非和弦音、根音在最低聲部、手指數合理」
 // 的組合，再按好按程度排序。這樣任何調、任何和弦品質都有按法，不用維護大表。
 
+import { STANDARD_TUNING, sameTuning } from './tuning.js';
+
 const PITCH_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const PITCH_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
-// 標準調弦，index 0 = 第1弦（細，高音 E）
-const TUNING = [64, 59, 55, 50, 45, 40]; // E4 B3 G3 D3 A2 E2
+// 目前調弦，index 0 = 第1弦（細）。預設標準調弦，可用 setTuning() 換掉
+let TUNING = [...STANDARD_TUNING]; // E4 B3 G3 D3 A2 E2
+let standardTuning = true;
 
 export const QUALITY_DEGREES = {
   maj: [0, 4, 7],
@@ -295,8 +298,12 @@ function evaluate(frets, root, needed, base) {
   const covered = new Set(sounding.map((n) => pitchClass(n.string, n.fret)));
   for (const pc of needed) if (!covered.has(pc)) return null;
 
-  // 最低音（第6弦方向）要是根音，否則扣分
-  const lowest = sounding.reduce((a, b) => (a.string > b.string ? a : b));
+  // 最低音要是根音，否則扣分。標準調弦沿用「第6弦就是低音」的慣例；
+  // 自訂調弦時第6弦不一定最低，改看實際音高。
+  const pitchOf = (n) => TUNING[n.string - 1] + n.fret;
+  const lowest = standardTuning
+    ? sounding.reduce((a, b) => (a.string > b.string ? a : b))
+    : sounding.reduce((a, b) => (pitchOf(b) < pitchOf(a) ? b : a));
   const rootInBass = pitchClass(lowest.string, lowest.fret) === root;
 
   // 手指數：同一格跨多弦算一根（大橫按）
@@ -327,6 +334,14 @@ function evaluate(frets, root, needed, base) {
 
 const cache = new Map();
 
+/** 換調弦：舊調弦算出來的按法都作廢，之後的指型一律用新調弦搜尋 */
+export function setTuning(tuning) {
+  TUNING = [...tuning];
+  standardTuning = sameTuning(TUNING, STANDARD_TUNING);
+  cache.clear();
+  allCache.clear();
+}
+
 /**
  * 取得和弦按法。
  * @param {string} name 例如 "Am7"
@@ -343,7 +358,7 @@ export function voicing(name) {
   if (parsed) {
     const sharp = PITCH_SHARP[parsed.root] + parsed.suffix;
     const flat = PITCH_FLAT[parsed.root] + parsed.suffix;
-    frets = OPEN_SHAPES[name] ?? OPEN_SHAPES[sharp] ?? OPEN_SHAPES[flat] ?? null;
+    frets = standardTuning ? OPEN_SHAPES[name] ?? OPEN_SHAPES[sharp] ?? OPEN_SHAPES[flat] ?? null : null;
     if (frets) frets = frets.slice();
   }
 
@@ -412,7 +427,7 @@ export function allVoicings(name) {
   // 查表的常用按法排第一個
   const sharp = PITCH_SHARP[parsed.root] + parsed.suffix;
   const flat = PITCH_FLAT[parsed.root] + parsed.suffix;
-  const table = OPEN_SHAPES[name] ?? OPEN_SHAPES[sharp] ?? OPEN_SHAPES[flat];
+  const table = standardTuning ? OPEN_SHAPES[name] ?? OPEN_SHAPES[sharp] ?? OPEN_SHAPES[flat] : null;
   if (table) push(table.slice());
 
   for (const v of searchAllPositions(parsed.root, parsed.quality)) {

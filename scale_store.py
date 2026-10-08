@@ -16,6 +16,15 @@ DEFAULT_SCALES = (
     ('C Major', 'C', '2,4,5,7,9,11'),
     ('C Minor', 'C', '2,3,5,7,8,10'),
 )
+# Open-string MIDI notes (C4 = 60), string 1 (thinnest) first.
+TUNING_MIN_MIDI = 35  # B1
+TUNING_MAX_MIDI = 71  # B4
+DEFAULT_TUNINGS = (
+    ('Standard', (64, 59, 55, 50, 45, 40)),
+    ('Drop D', (64, 59, 55, 50, 45, 38)),
+    ('Half Step Down', (63, 58, 54, 49, 44, 39)),
+    ('DADGAD', (62, 57, 55, 50, 45, 38)),
+)
 SESSION_TTL = 30 * 24 * 60 * 60
 OAUTH_STATE_TTL = 10 * 60
 
@@ -53,6 +62,18 @@ def init_db():
                 ON scales(owner_id, name COLLATE NOCASE) WHERE owner_id IS NOT NULL;
             CREATE UNIQUE INDEX IF NOT EXISTS default_scale_name
                 ON scales(name COLLATE NOCASE) WHERE is_default = 1;
+            CREATE TABLE IF NOT EXISTS tunings (
+                id INTEGER PRIMARY KEY,
+                owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                name TEXT NOT NULL,
+                notes TEXT NOT NULL,
+                is_default INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS custom_tuning_name_per_user
+                ON tunings(owner_id, name COLLATE NOCASE) WHERE owner_id IS NOT NULL;
+            CREATE UNIQUE INDEX IF NOT EXISTS default_tuning_name
+                ON tunings(name COLLATE NOCASE) WHERE is_default = 1;
             CREATE TABLE IF NOT EXISTS sessions (
                 token_hash TEXT PRIMARY KEY,
                 user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -71,6 +92,12 @@ def init_db():
                 'INSERT OR IGNORE INTO scales (owner_id, name, root_note, intervals, is_default, created_at) '
                 'VALUES (NULL, ?, ?, ?, 1, ?)',
                 (name, root_note, intervals, now),
+            )
+        for name, notes in DEFAULT_TUNINGS:
+            db.execute(
+                'INSERT OR IGNORE INTO tunings (owner_id, name, notes, is_default, created_at) '
+                'VALUES (NULL, ?, ?, 1, ?)',
+                (name, ','.join(str(n) for n in notes), now),
             )
 
 
@@ -131,6 +158,58 @@ def save_scale(user_id, name, root_note, intervals):
                 (user_id, name, root_note, intervals, now),
             )
     return {'name': name, 'Root Note': root_note, 'Intervals': intervals, 'isDefault': False}
+
+
+def validate_tuning(name, notes):
+    name = (name or '').strip()
+    if not name or len(name) > 60:
+        raise ValueError('Tuning name must be between 1 and 60 characters.')
+    if (
+        not isinstance(notes, list)
+        or len(notes) != 6
+        or any(isinstance(n, bool) or not isinstance(n, int) for n in notes)
+        or any(n < TUNING_MIN_MIDI or n > TUNING_MAX_MIDI for n in notes)
+    ):
+        raise ValueError('Choose an open note between B1 and B4 for each of the 6 strings.')
+    if any(name.casefold() == default[0].casefold() for default in DEFAULT_TUNINGS):
+        raise ValueError('That name is reserved for a built-in tuning.')
+    return name, list(notes)
+
+
+def _tuning_row(row):
+    return {
+        'name': row['name'],
+        'notes': [int(n) for n in row['notes'].split(',')],
+        'isDefault': bool(row['is_default']),
+    }
+
+
+def list_tunings(user_id=None):
+    with connect() as db:
+        rows = db.execute(
+            'SELECT name, notes, is_default FROM tunings WHERE is_default = 1 OR owner_id = ? '
+            'ORDER BY is_default DESC, CASE WHEN is_default = 1 THEN id ELSE 0 END, name COLLATE NOCASE',
+            (user_id,),
+        ).fetchall()
+    return [_tuning_row(row) for row in rows]
+
+
+def save_tuning(user_id, name, notes):
+    name, notes = validate_tuning(name, notes)
+    joined = ','.join(str(n) for n in notes)
+    with connect() as db:
+        existing = db.execute(
+            'SELECT id FROM tunings WHERE owner_id = ? AND name = ? COLLATE NOCASE',
+            (user_id, name),
+        ).fetchone()
+        if existing:
+            db.execute('UPDATE tunings SET name = ?, notes = ? WHERE id = ?', (name, joined, existing['id']))
+        else:
+            db.execute(
+                'INSERT INTO tunings (owner_id, name, notes, is_default, created_at) VALUES (?, ?, ?, 0, ?)',
+                (user_id, name, joined, int(time.time())),
+            )
+    return {'name': name, 'notes': notes, 'isDefault': False}
 
 
 def _token_hash(token):

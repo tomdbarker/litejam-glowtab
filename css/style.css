@@ -328,6 +328,26 @@ input[type="range"] {
   accent-color: var(--accent);
 }
 
+.tuning-strings {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px 8px;
+  margin: 8px 0;
+}
+
+.tuning-string {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.tuning-string select {
+  flex: none;
+  width: 100%;
+}
+
 input[type="checkbox"] {
   accent-color: var(--accent);
   width: 15px;

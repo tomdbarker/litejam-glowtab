@@ -34,7 +34,9 @@ from scale_store import (
     google_identity,
     init_db,
     list_scales,
+    list_tunings,
     save_scale,
+    save_tuning,
     upsert_google_user,
     consume_oauth_state,
 )
@@ -48,7 +50,7 @@ _chord_analyzer = None
 
 # 前端會拿這個和自己的常數比對。加了新的 API 就把它 +1，
 # 這樣「網頁是新的、伺服器還是舊的」會直接講出來，而不是丟一個看不懂的錯誤。
-API_VERSION = 8
+API_VERSION = 9
 
 PORT = int(os.environ.get('PORT', '8123'))
 HOST = os.environ.get('HOST', '127.0.0.1')
@@ -779,6 +781,12 @@ class Handler(SimpleHTTPRequestHandler):
                 'scales': list_scales(user['id'] if user else None),
                 'authenticated': bool(user),
             })
+        if parsed.path == '/api/tunings':
+            user = self.current_user()
+            return self.send_json({
+                'tunings': list_tunings(user['id'] if user else None),
+                'authenticated': bool(user),
+            })
         if parsed.path.startswith('/api/job/'):
             job_id = parsed.path.rsplit('/', 1)[-1]
             job = get_job(job_id)
@@ -838,7 +846,7 @@ class Handler(SimpleHTTPRequestHandler):
 
         length = self.content_length()
 
-        if parsed.path in ('/api/scales', '/auth/logout'):
+        if parsed.path in ('/api/scales', '/api/tunings', '/auth/logout'):
             if not self.same_origin_request():
                 return self.fail('Request origin could not be verified.', 403)
 
@@ -851,15 +859,21 @@ class Handler(SimpleHTTPRequestHandler):
                 )
 
             user = self.current_user()
+            noun = 'tunings' if parsed.path == '/api/tunings' else 'scales'
             if not user:
-                return self.fail('Sign in with Google to save personal scales.', 401)
+                return self.fail(f'Sign in with Google to save personal {noun}.', 401)
             if length <= 0 or length > 16 * 1024:
-                return self.fail('Scale data is missing or too large.')
+                return self.fail(f'{noun[:-1].capitalize()} data is missing or too large.')
             try:
                 payload = json.loads(self.read_body(length).decode('utf-8'))
             except (UnicodeDecodeError, json.JSONDecodeError):
                 return self.fail('Request body is not valid JSON.')
+            if not isinstance(payload, dict):
+                return self.fail('Request body must be a JSON object.')
             try:
+                if parsed.path == '/api/tunings':
+                    tuning = save_tuning(user['id'], payload.get('name'), payload.get('notes'))
+                    return self.send_json({'tuning': tuning}, 201)
                 scale = save_scale(
                     user['id'], payload.get('name'), payload.get('rootNote'), payload.get('intervals')
                 )

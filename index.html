@@ -143,6 +143,26 @@
               <button id="btn-scale-send" class="btn btn-sm btn-primary">Show and Send Scale</button>
               <button id="btn-scale-clear" class="btn btn-sm">Clear Scale</button>
             </div>
+
+            <hr class="panel-sep" />
+            <h3>Guitar Tuning</h3>
+            <label class="row">
+              <span>Tuning Preset</span>
+              <select id="tuning-preset">
+                <option value="">Custom</option>
+              </select>
+            </label>
+            <div id="tuning-strings" class="tuning-strings"></div>
+            <p id="tuning-summary" class="muted small"></p>
+            <label class="row scale-interval-row">
+              <span>Tuning Name</span>
+              <input id="tuning-name" type="text" maxlength="60" placeholder="e.g. Open G" />
+            </label>
+            <div class="row gap">
+              <button id="btn-tuning-save" class="btn btn-sm" disabled>Save Custom Tuning</button>
+              <button id="btn-tuning-reset" class="btn btn-sm">Reset to Standard</button>
+            </div>
+            <p class="muted small">Choose the open note (B1–B4) of each string. Every note, chord and scale sent to the fretboard uses this tuning until you change it or reset it. Sign in above to save tunings to your account.</p>
           </section>
 
           <section class="panel" id="panel-chord" hidden>
