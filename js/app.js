@@ -63,6 +63,7 @@ const el = {
   tuningPreset: $('tuning-preset'),
   tuningStrings: $('tuning-strings'),
   tuningSummary: $('tuning-summary'),
+  toggleScoreTuning: $('toggle-score-tuning'),
   tuningName: $('tuning-name'),
   tuningSave: $('btn-tuning-save'),
   tuningReset: $('btn-tuning-reset'),
@@ -231,6 +232,7 @@ function load() {
     capo: 0,
     showJianpu: false,
     tuning: [...STANDARD_TUNING],
+    useCustomTuningForScoreNotes: true,
   };
   try {
     const merged = { ...defaults, ...JSON.parse(localStorage.getItem('litejam-glowtab') ?? '{}') };
@@ -401,15 +403,15 @@ function hwString(guitarString) {
 
 /**
  * 這一拍的音符要亮在哪條弦、哪一格（吉他慣例：1 = 細弦）。
- * 標準調弦直接用譜上的弦和格；自訂調弦則用音高重算，
- * 不然譜上的格數在調過弦的吉他上會是錯的音。
+ * Score positions are used unchanged for standard tuning or when the score
+ * already encodes the intended custom tuning. Otherwise, calculate by pitch.
  */
 function beatPositions(beat) {
   const notes = (beat?.notes ?? []).filter(
     // 延音線的後半段不重新亮
     (n) => !n.isTieDestination && n.string != null && n.fret != null && n.fret >= 0
   );
-  if (sameTuning(settings.tuning, STANDARD_TUNING)) {
+  if (!settings.useCustomTuningForScoreNotes || sameTuning(settings.tuning, STANDARD_TUNING)) {
     return notes.map((note) => ({ note, gstr: atStringToGuitar(note.string), fret: note.fret }));
   }
   // 泛音要亮「按下去的那一格」，所以不用含泛音的音高
@@ -806,6 +808,10 @@ on(el.tuningSave, 'click', saveCustomTuning);
 on(el.tuningReset, 'click', () => {
   applyTuning(STANDARD_TUNING);
   toast('Tuning reset to standard.');
+});
+on(el.toggleScoreTuning, 'change', () => {
+  settings.useCustomTuningForScoreNotes = el.toggleScoreTuning.checked;
+  save();
 });
 
 /* ---------------- 手動點燈：自己點指板排出和弦 ---------------- */
@@ -2660,6 +2666,7 @@ function applySettingsToUi() {
   el.brightnessOut.textContent = `${settings.brightness}%`;
   el.toggleReverse.checked = settings.reverseStrings;
   if (el.toggleQualityColor) el.toggleQualityColor.checked = settings.colorByQuality;
+  if (el.toggleScoreTuning) el.toggleScoreTuning.checked = settings.useCustomTuningForScoreNotes;
   el.stave.value = settings.stave;
   el.layout.value = settings.layout;
   el.zoom.value = String(settings.zoom);

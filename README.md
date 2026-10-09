@@ -57,11 +57,11 @@ Register `https://your-public-domain/auth/google/callback` as an authorized redi
 
 ### Custom tunings
 
-The **Guitar Tuning** panel lets you pick the open note (B1–B4, including sharps) of each of the six strings. Everything sent to the fretboard then uses that tuning until you change it or choose **Reset to Standard**: notes from a score or solo tab are re-placed by pitch, chord shapes are searched again for the new tuning, and scale lighting uses the new open notes. The active tuning is remembered in the browser.
+The **Guitar Tuning** panel lets you pick the open note (B1–B4, including sharps) of each of the six strings. Everything sent to the fretboard then uses that tuning until you change it or choose **Reset to Standard**: score and solo-tab notes are re-placed by pitch, chord shapes are searched again for the new tuning, and scale lighting uses the new open notes. The active tuning is remembered in the browser.
 
 Built-in presets (Standard, Drop D, Half Step Down, DADGAD) are available to everyone. Signed-in users can save their own tunings, which are stored per account in the same SQLite database and appear in the preset dropdown. Notes a tuning cannot reach (below the lowest open string or past the last fret) are not lit. Manual lighting is unaffected, since it lights the frets you click.
 
-Standard tuning keeps the original behaviour: a score's own string and fret numbers are sent unchanged. In a custom tuning, the score's pitches are what matter, so a file written in another tuning still sounds correctly.
+Standard tuning keeps the original behaviour: a score's own string and fret numbers are sent unchanged. In a custom tuning, score pitches are normally used to calculate positions so a file written in another tuning still sounds correctly. If the score already encodes its intended tuning, turn off **Use custom tuning for score note positions** to send its original string and fret positions unchanged. This choice is remembered in the browser.
 
 ## 用法
 
